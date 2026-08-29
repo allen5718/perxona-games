@@ -302,10 +302,6 @@
 
   function startRound() {
     if (playerTotalDice === 0 || aiTotalDice === 0) {
-      log(playerTotalDice === 0 ? "🏆 遊戲結束，你輸了！請點擊「重新開始」" : "🏆 遊戲結束，你贏了！請點擊「重新開始」", 'warning');
-      document.getElementById('btn-bid').style.display = 'none';
-      document.getElementById('btn-liar').style.display = 'none';
-      document.getElementById('btn-next').style.display = 'none';
       return;
     }
     playerDice = rollDice(playerTotalDice);
@@ -393,9 +389,25 @@
       log(`${bidder === 'player' ? '你' : 'AI'} 失去了一顆骰子。`, 'warning');
     }
     
+    document.getElementById('ai-dice-count').textContent = aiTotalDice;
+    document.getElementById('player-dice-count').textContent = playerTotalDice;
+    
     document.getElementById('btn-bid').style.display = 'none';
     document.getElementById('btn-liar').style.display = 'none';
-    document.getElementById('btn-next').style.display = 'inline-block';
+
+    // 檢查是否遊戲結束
+    if (playerTotalDice === 0 || aiTotalDice === 0) {
+      const isPlayerWin = aiTotalDice === 0;
+      const winHtml = isPlayerWin 
+        ? '<span style="color:#10b981; font-weight:bold; font-size:1.6rem; text-shadow:0 0 15px rgba(16,185,129,0.5);">🎉 遊戲結束：恭喜你獲勝！</span>'
+        : '<span style="color:#ef4444; font-weight:bold; font-size:1.6rem; text-shadow:0 0 15px rgba(239,68,68,0.5);">💀 遊戲結束：你的對手獲勝！</span>';
+      
+      document.getElementById('current-bid').innerHTML = winHtml;
+      document.getElementById('btn-next').style.display = 'none';
+      log(isPlayerWin ? "🏆 遊戲結束，恭喜你贏得整場比賽！請點擊「重新開始」。" : "🏆 遊戲結束，你的骰子全沒了！請點擊「重新開始」。", 'warning');
+    } else {
+      document.getElementById('btn-next').style.display = 'inline-block';
+    }
   }
 
   function aiPlay() {
