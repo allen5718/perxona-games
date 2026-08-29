@@ -147,6 +147,16 @@
     button.call-liar {
       background: linear-gradient(90deg, #ef4444, #f43f5e);
     }
+    button.restart-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #cbd5e1;
+    }
+    button.restart-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+    }
     .log-area {
       flex: 1;
       height: 100%;
@@ -198,6 +208,7 @@
         <button id="btn-bid" onclick="playerBid()">叫牌 (Bid)</button>
         <button id="btn-liar" class="call-liar" onclick="playerCallLiar()" disabled>抓！(Call Liar)</button>
         <button id="btn-next" onclick="startRound()" style="display:none;">下一回合</button>
+        <button id="btn-restart" class="restart-btn" onclick="restartGame()">重新開始</button>
       </div>
     </div>
 
@@ -281,9 +292,20 @@
     }
   }
 
+  function restartGame() {
+    playerTotalDice = 5;
+    aiTotalDice = 5;
+    document.getElementById('game-log').innerHTML = '';
+    log("=== 遊戲已重新開始 ===", 'system');
+    startRound();
+  }
+
   function startRound() {
     if (playerTotalDice === 0 || aiTotalDice === 0) {
-      log(playerTotalDice === 0 ? "遊戲結束，你輸了！" : "遊戲結束，你贏了！", 'warning');
+      log(playerTotalDice === 0 ? "🏆 遊戲結束，你輸了！請點擊「重新開始」" : "🏆 遊戲結束，你贏了！請點擊「重新開始」", 'warning');
+      document.getElementById('btn-bid').style.display = 'none';
+      document.getElementById('btn-liar').style.display = 'none';
+      document.getElementById('btn-next').style.display = 'none';
       return;
     }
     playerDice = rollDice(playerTotalDice);
