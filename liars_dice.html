@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>骰子吹牛 - 你的對手</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: radial-gradient(circle at 50% 20%, #161b33 0%, #0c0f1d 70%, #06080f 100%);
+      font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
+      color: #eee;
+      padding: 20px 10px;
+    }
+    header { text-align: center; margin-bottom: 20px; }
+    h1 {
+      font-size: 2.2rem;
+      letter-spacing: 0.15em;
+      margin-bottom: 6px;
+      background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 30px rgba(56, 189, 248, 0.3);
+    }
+    .layout-wrapper {
+      display: flex;
+      flex-direction: row;
+      gap: 20px;
+      width: 100%;
+      max-width: 1000px;
+      align-items: stretch;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .game-container {
+      flex: 2;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      min-width: 320px;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(16px);
+    }
+    .log-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 280px;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(16px);
+    }
+    .area {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 15px;
+      text-align: center;
+    }
+    .area-title {
+      font-size: 1.1rem;
+      color: #38bdf8;
+      margin-bottom: 10px;
+      font-weight: bold;
+      text-align: center;
+    }
+    .dice-container {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      min-height: 60px;
+    }
+    .die {
+      width: 50px;
+      height: 50px;
+      background: #f1f5f9;
+      color: #0f172a;
+      font-size: 1.5rem;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      border: 2px solid #38bdf8;
+    }
+    .die.hidden {
+      background: #1e293b;
+      color: #94a3b8;
+      border-color: #475569;
+    }
+    .table-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .current-bid {
+      font-size: 1.5rem;
+      color: #c084fc;
+      text-shadow: 0 0 15px rgba(192, 132, 252, 0.5);
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    select, button {
+      padding: 10px 15px;
+      border-radius: 8px;
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      background: rgba(15, 23, 42, 0.9);
+      color: #fff;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    button {
+      background: linear-gradient(90deg, #38bdf8, #818cf8);
+      border: none;
+      font-weight: bold;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
+    }
+    button:disabled {
+      background: #475569;
+      color: #94a3b8;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    button.call-liar {
+      background: linear-gradient(90deg, #ef4444, #f43f5e);
+    }
+    .log-area {
+      flex: 1;
+      height: 100%;
+      min-height: 300px;
+      overflow-y: auto;
+      text-align: left;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      padding: 10px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+    }
+    .log-entry { margin-bottom: 5px; }
+    .log-ai { color: #c084fc; }
+    .log-player { color: #38bdf8; }
+    .log-system { color: #10b981; }
+    .log-warning { color: #f59e0b; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>骰子吹牛</h1>
+  <div style="color:#94a3b8;">你的對手 對戰系統</div>
+</header>
+
+<div class="layout-wrapper">
+  <div class="game-container">
+    <div class="area">
+      <div class="area-title">你的對手 骰子 (<span id="ai-dice-count">5</span> 顆)</div>
+      <div class="dice-container" id="ai-dice">
+        <!-- AI dice here -->
+      </div>
+    </div>
+
+    <div class="area table-area">
+      <div class="area-title">桌面狀態</div>
+      <div class="current-bid" id="current-bid">目前無叫牌</div>
+      <div class="controls">
+        <select id="bid-qty"></select>
+        <select id="bid-face">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+        </select>
+        <button id="btn-bid" onclick="playerBid()">叫牌 (Bid)</button>
+        <button id="btn-liar" class="call-liar" onclick="playerCallLiar()" disabled>抓！(Call Liar)</button>
+        <button id="btn-next" onclick="startRound()" style="display:none;">下一回合</button>
+      </div>
+    </div>
+
+    <div class="area">
+      <div class="area-title">你的骰子 (<span id="player-dice-count">5</span> 顆)</div>
+      <div class="dice-container" id="player-dice">
+        <!-- Player dice here -->
+      </div>
+    </div>
+  </div>
+
+  <div class="log-container">
+    <div class="area-title">遊戲紀錄</div>
+    <div class="log-area" id="game-log"></div>
+  </div>
+</div>
+
+<script>
+  let playerDice = [];
+  let aiDice = [];
+  let playerTotalDice = 5;
+  let aiTotalDice = 5;
+  let currentBid = { qty: 0, face: 0, player: null }; 
+  let isAiTurn = false;
+  let onesAreWild = true;
+
+  function rollDice(count) {
+    let dice = [];
+    for(let i=0; i<count; i++) {
+      dice.push(Math.floor(Math.random() * 6) + 1);
+    }
+    return dice.sort((a,b) => a - b);
+  }
+
+  function log(msg, type='system') {
+    const logArea = document.getElementById('game-log');
+    const entry = document.createElement('div');
+    entry.className = `log-entry log-${type}`;
+    entry.textContent = msg;
+    logArea.appendChild(entry);
+    logArea.scrollTop = logArea.scrollHeight;
+  }
+
+  function renderDice(containerId, dice, hidden=false) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    dice.forEach(d => {
+      const dieEl = document.createElement('div');
+      dieEl.className = 'die' + (hidden ? ' hidden' : '');
+      dieEl.textContent = hidden ? '?' : d;
+      container.appendChild(dieEl);
+    });
+  }
+
+  function updateUI() {
+    document.getElementById('ai-dice-count').textContent = aiTotalDice;
+    document.getElementById('player-dice-count').textContent = playerTotalDice;
+    renderDice('player-dice', playerDice);
+    renderDice('ai-dice', aiDice, true); 
+    
+    if (currentBid.qty === 0) {
+      document.getElementById('current-bid').textContent = '目前無叫牌';
+    } else {
+      let faceStr = currentBid.face === 1 ? '1 (不再是萬用)' : currentBid.face;
+      document.getElementById('current-bid').textContent = `${currentBid.qty} 個 ${faceStr}`;
+    }
+
+    const qtySelect = document.getElementById('bid-qty');
+    qtySelect.innerHTML = '';
+    let startQty = Math.max(1, currentBid.qty);
+    for(let i = startQty; i <= playerTotalDice + aiTotalDice; i++) {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = i + ' 個';
+      qtySelect.appendChild(opt);
+    }
+    
+    if (currentBid.qty > 0) {
+      qtySelect.value = currentBid.face === 6 ? currentBid.qty + 1 : currentBid.qty;
+      document.getElementById('bid-face').value = currentBid.face === 6 ? 2 : currentBid.face + 1;
+    }
+  }
+
+  function startRound() {
+    if (playerTotalDice === 0 || aiTotalDice === 0) {
+      log(playerTotalDice === 0 ? "遊戲結束，你輸了！" : "遊戲結束，你贏了！", 'warning');
+      return;
+    }
+    playerDice = rollDice(playerTotalDice);
+    aiDice = rollDice(aiTotalDice);
+    currentBid = { qty: 0, face: 0, player: null };
+    onesAreWild = true;
+    isAiTurn = false;
+    
+    document.getElementById('btn-bid').style.display = 'inline-block';
+    document.getElementById('btn-bid').disabled = false;
+    document.getElementById('btn-liar').style.display = 'inline-block';
+    document.getElementById('btn-liar').disabled = true;
+    document.getElementById('btn-next').style.display = 'none';
+    
+    log("--- 新回合開始 ---", 'system');
+    log("請叫牌。", 'system');
+    updateUI();
+  }
+
+  function isValidBid(qty, face) {
+    if (currentBid.qty === 0) return true;
+    if (qty > currentBid.qty) return true;
+    if (qty === currentBid.qty && face > currentBid.face) return true;
+    return false;
+  }
+
+  function playerBid() {
+    if (isAiTurn) return;
+    const qty = parseInt(document.getElementById('bid-qty').value);
+    const face = parseInt(document.getElementById('bid-face').value);
+    
+    if (!isValidBid(qty, face)) {
+      log("無效的叫牌！必須增加數量或在相同數量下增加點數。", 'warning');
+      return;
+    }
+
+    placeBid(qty, face, 'player');
+    
+    isAiTurn = true;
+    document.getElementById('btn-bid').disabled = true;
+    document.getElementById('btn-liar').disabled = true;
+    setTimeout(aiPlay, 1500);
+  }
+
+  function placeBid(qty, face, player) {
+    currentBid = { qty, face, player };
+    if (face === 1) onesAreWild = false;
+    log(`${player === 'player' ? '你' : 'AI'} 叫了 ${qty} 個 ${face}`, player);
+    updateUI();
+    document.getElementById('btn-liar').disabled = false;
+  }
+
+  function calculateActualCount(face) {
+    let count = 0;
+    const allDice = playerDice.concat(aiDice);
+    allDice.forEach(d => {
+      if (d === face || (onesAreWild && d === 1)) count++;
+    });
+    return count;
+  }
+
+  function playerCallLiar() {
+    if (isAiTurn || currentBid.qty === 0) return;
+    resolveRound('player');
+  }
+
+  function resolveRound(caller) {
+    const bidder = caller === 'player' ? 'ai' : 'player';
+    log(`${caller === 'player' ? '你' : 'AI'} 喊了抓！(Call Liar)`, caller);
+    
+    renderDice('ai-dice', aiDice, false); 
+    
+    const actualCount = calculateActualCount(currentBid.face);
+    log(`揭曉：場上共有 ${actualCount} 個 ${currentBid.face}${onesAreWild && currentBid.face !== 1 ? ' (含萬用1點)' : ''}`, 'system');
+    
+    if (actualCount >= currentBid.qty) {
+      log(`叫牌成功！${bidder === 'player' ? '你' : 'AI'} 贏了這個回合。`, 'system');
+      if (caller === 'player') playerTotalDice--;
+      else aiTotalDice--;
+      log(`${caller === 'player' ? '你' : 'AI'} 失去了一顆骰子。`, 'warning');
+    } else {
+      log(`吹牛被抓到了！${caller === 'player' ? '你' : 'AI'} 贏了這個回合。`, 'system');
+      if (bidder === 'player') playerTotalDice--;
+      else aiTotalDice--;
+      log(`${bidder === 'player' ? '你' : 'AI'} 失去了一顆骰子。`, 'warning');
+    }
+    
+    document.getElementById('btn-bid').style.display = 'none';
+    document.getElementById('btn-liar').style.display = 'none';
+    document.getElementById('btn-next').style.display = 'inline-block';
+  }
+
+  function aiPlay() {
+    let aiCounts = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0};
+    aiDice.forEach(d => aiCounts[d]++);
+    
+    if (currentBid.qty === 0) {
+      let bestFace = 2; let maxCount = -1;
+      for(let i=2; i<=6; i++) {
+        if(aiCounts[i] > maxCount) { maxCount = aiCounts[i]; bestFace = i; }
+      }
+      placeBid(1, bestFace, 'ai');
+    } else {
+      const face = currentBid.face;
+      const myCount = aiCounts[face] + (onesAreWild && face !== 1 ? aiCounts[1] : 0);
+      const expectedPlayerCount = playerTotalDice * (onesAreWild && face !== 1 ? (2/6) : (1/6));
+      const expectedTotal = myCount + expectedPlayerCount;
+      
+      const threshold = expectedTotal + (Math.random() * 0.5 - 0.25);
+      
+      if (currentBid.qty > threshold + 0.5 && Math.random() < 0.8) {
+        resolveRound('ai');
+      } else {
+        let nextQty = currentBid.qty;
+        let nextFace = currentBid.face + 1;
+        
+        if (nextFace > 6) {
+          nextQty++;
+          let bestFace = 2; let maxCount = -1;
+          for(let i=2; i<=6; i++) {
+            if(aiCounts[i] > maxCount) { maxCount = aiCounts[i]; bestFace = i; }
+          }
+          nextFace = bestFace;
+        } else {
+           let bestFace = 2; let maxCount = -1;
+           for(let i=2; i<=6; i++) {
+             if(aiCounts[i] > maxCount) { maxCount = aiCounts[i]; bestFace = i; }
+           }
+           if (maxCount > aiCounts[nextFace]) {
+               nextQty++;
+               nextFace = bestFace;
+           }
+        }
+        
+        placeBid(nextQty, nextFace, 'ai');
+      }
+    }
+    
+    if (playerTotalDice > 0 && aiTotalDice > 0 && currentBid.player === 'ai') {
+        isAiTurn = false;
+        document.getElementById('btn-bid').disabled = false;
+        document.getElementById('btn-liar').disabled = false;
+    }
+  }
+
+  startRound();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Perxona 3D AI Avatar - Vic973031</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body, html {
+      width: 100vw;
+      height: 100vh;
+      background-color: #0b1120;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #f8fafc;
+      overflow: hidden;
+    }
+    .top-bar {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      z-index: 9999;
+      display: flex;
+      gap: 0.75rem;
+    }
+    .nav-btn {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid #334155;
+      color: #93c5fd;
+      padding: 8px 16px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .nav-btn:hover {
+      background: #1e293b;
+      color: #ffffff;
+      border-color: #3b82f6;
+    }
+    .avatar-frame-container {
+      width: 100vw;
+      height: 100vh;
+      border: none;
+      position: relative;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <a href="index.html" class="nav-btn">⬅ 返回 Studio 總控台</a>
+    <a href="https://live.perxona.ai/asia/allen5718/Vic973031" target="_blank" class="nav-btn">🔗 開啟獨立全螢幕分頁</a>
+  </div>
+
+  <div class="avatar-frame-container">
+    <!-- 直接載入已驗證可正常互動的 Perxona 3D Live Avatar 完整服務 -->
+    <iframe 
+      id="perxonaLiveFrame"
+      src="https://live.perxona.ai/asia/allen5718/Vic973031" 
+      allow="microphone; camera; autoplay; display-capture"
+      allowfullscreen>
+    </iframe>
+  </div>
+</body>
+</html>

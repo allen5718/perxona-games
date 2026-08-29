@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Perxona AI 3D 虛擬人互動工作台</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Three.js CDN 用於內建 3D 虛擬人渲染 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Perxona 官方亞洲伺服器 Presentation SDK -->
+  <script type="module" src="https://cdn.perxona.ai/asia/prod/latest/widget/entry/index.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <!-- 頂部導覽列 -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a8 8 0 0 0-8 8c0 5 8 12 8 12s8-7 8-12a8 8 0 0 0-8-8z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Perxona AI Avatar Studio</h1>
+          <span class="brand-subtitle">3D Behavior AI 虛擬人即時互動系統</span>
+        </div>
+      </div>
+
+      <!-- 模式切換器 -->
+      <div class="mode-tabs">
+        <button id="tabBuiltin" class="tab-btn active">
+          <span class="dot live"></span> 內建 3D 虛擬人 (即時體驗)
+        </button>
+        <button id="tabPerxona" class="tab-btn">
+          <span class="dot"></span> Perxona 雲端 SDK 模式
+        </button>
+      </div>
+
+      <!-- 快速控制 -->
+      <div class="header-actions">
+        <button id="btnVoiceToggle" class="action-btn" title="切換語音朗讀">
+          <span id="voiceIcon">🔊</span>
+          <span id="voiceLabel">語音開啟</span>
+        </button>
+        <button id="btnSettings" class="action-btn">
+          ⚙️ 角色與設定
+        </button>
+      </div>
+    </header>
+
+    <!-- 主要視圖區 -->
+    <div class="main-body">
+      <!-- 3D 虛擬人展示舞台 -->
+      <section class="stage-container">
+        <!-- 內建 3D 舞台 Canvas -->
+        <div id="builtinStage" class="stage-view active">
+          <canvas id="avatarCanvas"></canvas>
+          
+          <!-- 虛擬人即時狀態浮水印 -->
+          <div class="avatar-status-pill">
+            <div id="avatarStatusDot" class="status-indicator"></div>
+            <span id="avatarStatusText">待命中 (Idle)</span>
+          </div>
+
+          <!-- 情緒 / 氛圍選擇浮動選單 -->
+          <div class="stage-controls">
+            <button class="stage-ctrl-btn active" data-bg="cyber">🌌 賽博空間</button>
+            <button class="stage-ctrl-btn" data-bg="studio">💡 舞台聚光</button>
+            <button class="stage-ctrl-btn" data-bg="office">🏢 智能辦公室</button>
+          </div>
+        </div>
+
+        <!-- Perxona 官方 SDK 容器 -->
+        <div id="perxonaStage" class="stage-view">
+          <div id="perxonaSdkContainer" class="perxona-widget-wrap">
+            <div class="sdk-placeholder">
+              <div class="icon">✨</div>
+              <h3>Perxona Cloud SDK 模式</h3>
+              <p>請點擊右上角「⚙️ 角色與設定」填入您的 Perxona API Key 與 Agent Profile ID。</p>
+              <button id="btnOpenPerxonaConfig" class="btn-primary-small">立即設定憑證</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 虛擬人字幕對話條 (即時顯現說話內容) -->
+        <div id="speechSubtitle" class="speech-subtitle hidden">
+          <div class="subtitle-speaker">AI Avatar:</div>
+          <div id="subtitleText" class="subtitle-content">你好！很高興遇見你，今天想聊些什麼呢？</div>
+        </div>
+      </section>
+
+      <!-- 右側互動面板 (聊天紀錄 + 輸入控制) -->
+      <aside class="chat-sidebar">
+        <!-- 角色簡介卡 -->
+        <div class="persona-card">
+          <div class="persona-avatar-sm" id="personaEmoji">👩‍💼</div>
+          <div class="persona-info">
+            <h3 id="personaName">艾米莉 (Emily)</h3>
+            <p id="personaRole">智慧品牌代言人 & AI 諮詢顧問</p>
+          </div>
+          <span class="persona-badge" id="personaMood">😊 親切友善</span>
+        </div>
+
+        <!-- 對話訊息列表 -->
+        <div class="chat-messages" id="chatMessages">
+          <div class="message-item system">
+            <div class="msg-bubble system">
+              💡 歡迎！您可以直接在下方打字，或點擊麥克風按鈕以語音跟 AI 虛擬人即時對話。
+            </div>
+          </div>
+          <div class="message-item assistant">
+            <div class="msg-avatar">🤖</div>
+            <div class="msg-content">
+              <div class="msg-sender">Emily</div>
+              <div class="msg-bubble">你好！我是你的專屬 3D AI 虛擬人，支持自然語音、即時口型同步與情緒反應。請問今天有什麼我可以協助你的？</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 輸入工具列 -->
+        <div class="chat-input-area">
+          <div class="quick-prompts">
+            <button class="prompt-chip" data-text="請自我介紹一下！">👋 自我介紹</button>
+            <button class="prompt-chip" data-text="你能為我的業務做些什麼？">💼 業務能力</button>
+            <button class="prompt-chip" data-text="說個有趣的故事吧！">🎉 講個故事</button>
+          </div>
+
+          <div class="input-box-wrapper">
+            <button id="btnMic" class="mic-btn" title="語音輸入 (麥克風)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            </button>
+            
+            <textarea id="userInput" placeholder="輸入訊息... (Enter 發送，Shift+Enter 換行)" rows="1"></textarea>
+            
+            <button id="btnSend" class="send-btn" title="發送">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </button>
+          </div>
+          <div id="micStatus" class="mic-listening-indicator hidden">
+            <span class="wave"></span> 正在聆聽您的語音中...
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- 設定彈窗 (Modal) -->
+    <div id="settingsModal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>⚙️ 虛擬人與系統設定</h2>
+          <button id="btnCloseModal" class="close-btn">&times;</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- 頁籤切換 -->
+          <div class="settings-nav">
+            <button class="settings-tab-btn active" data-section="sec-persona">角色人設 (Persona)</button>
+            <button class="settings-tab-btn" data-section="sec-voice">語音與口型</button>
+            <button class="settings-tab-btn" data-section="sec-perxona">Perxona 雲端憑證</button>
+            <button class="settings-tab-btn" data-section="sec-ai">LLM 大模型金鑰</button>
+          </div>
+
+          <!-- Section 1: 人設 -->
+          <div id="sec-persona" class="settings-section active">
+            <div class="form-item">
+              <label>角色模板預設</label>
+              <select id="selectPersonaPreset">
+                <option value="consultant">👩‍💼 智慧品牌顧問 (Emily) - 專業、親切、自信</option>
+                <option value="companion">🌸 溫暖陪伴夥伴 (Ariel) - 活潑、貼心、療癒</option>
+                <option value="tech">🧑‍💻 科技架構專家 (Alex) - 理性、嚴謹、專業</option>
+                <option value="custom">✏️ 自訂角色設定...</option>
+              </select>
+            </div>
+
+            <div class="form-item">
+              <label>角色名稱</label>
+              <input type="text" id="cfgPersonaName" value="艾米莉 (Emily)" />
+            </div>
+
+            <div class="form-item">
+              <label>角色 System Prompt (人設提示詞)</label>
+              <textarea id="cfgSystemPrompt" rows="4">你是一位專業、優雅且富有同理心的 3D AI 虛擬代言人 Emily。請用親切熱情的繁體中文回答用戶的所有問題，回答簡練有力，並適度帶有豐富的情緒與肢體動態感。</textarea>
+            </div>
+          </div>
+
+          <!-- Section 2: 語音 -->
+          <div id="sec-voice" class="settings-section">
+            <div class="form-item">
+              <label>TTS 語音角色 (瀏覽器語音庫)</label>
+              <select id="selectVoiceName"></select>
+            </div>
+
+            <div class="form-row">
+              <div class="form-item">
+                <label>語速 (Speed): <span id="valRate">1.0x</span></label>
+                <input type="range" id="cfgVoiceRate" min="0.5" max="1.5" step="0.1" value="1.0" />
+              </div>
+              <div class="form-item">
+                <label>音調 (Pitch): <span id="valPitch">1.0</span></label>
+                <input type="range" id="cfgVoicePitch" min="0.5" max="1.5" step="0.1" value="1.0" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Perxona 官方憑證 -->
+          <div id="sec-perxona" class="settings-section">
+            <p class="section-desc">若要切換至 XRSPACE Perxona 官方 3D Behavior AI 雲端模型，請填入憑證：</p>
+            <div class="form-item">
+              <label>Perxona Deployment API Key</label>
+              <input type="password" id="cfgPerxonaApiKey" placeholder="請輸入 API Key" />
+            </div>
+            <div class="form-item">
+              <label>Agent Profile ID</label>
+              <input type="text" id="cfgPerxonaProfileId" placeholder="例如：agp_xxxxxx" />
+            </div>
+            <div class="form-item">
+              <label>對話模式 (Conversation Mode)</label>
+              <select id="cfgPerxonaConvMode">
+                <option value="inputText">文字輸入模式 (inputText)</option>
+                <option value="voice">語音麥克風模式 (voice)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Section 4: AI 模型 -->
+          <div id="sec-ai" class="settings-section">
+            <p class="section-desc">本系統內建智慧對話引擎。您也可以填入自己的 OpenAI / Gemini API Key 連接最新大模型：</p>
+            <div class="form-item">
+              <label>AI 提供商</label>
+              <select id="cfgLlmProvider">
+                <option value="builtin">內建智慧對話引擎 (無須金鑰)</option>
+                <option value="gemini">Google Gemini API</option>
+                <option value="openai">OpenAI ChatGPT API</option>
+              </select>
+            </div>
+            <div class="form-item" id="apiKeyWrap" style="display: none;">
+              <label>自訂 API Key</label>
+              <input type="password" id="cfgLlmApiKey" placeholder="填入 API Key" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="btnSaveSettings" class="btn-primary">儲存設定</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 應用程式模組腳本 -->
+  <script type="module" src="avatar3d.js"></script>
+  <script type="module" src="speech.js"></script>
+  <script type="module" src="ai_brain.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

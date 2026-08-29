@@ -1,0 +1,2145 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>五子棋 - Perxona AI 虛擬人對弈系統</title>
+  <!-- Three.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      background: radial-gradient(circle at 50% 20%, #161b33 0%, #0c0f1d 70%, #06080f 100%);
+      font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
+      color: #eee;
+      padding: 20px 10px;
+      overflow-x: hidden;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      letter-spacing: 0.15em;
+      margin-bottom: 6px;
+      background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 30px rgba(56, 189, 248, 0.3);
+    }
+
+    .subtitle {
+      font-size: 0.9rem;
+      color: #94a3b8;
+      letter-spacing: 0.05em;
+    }
+
+    /* Main Container Layout: Avatar + Chessboard */
+    .arena-container {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      margin-top: 8px;
+      max-width: 1200px;
+      width: 100%;
+      flex-wrap: wrap;
+    }
+
+    /* Left: Perxona AI Avatar Card */
+    .avatar-card {
+      width: 320px;
+      height: 580px;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 20px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(16px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .avatar-card.thinking {
+      border-color: #c084fc;
+      box-shadow: 0 0 35px rgba(192, 132, 252, 0.4), inset 0 0 15px rgba(192, 132, 252, 0.2);
+    }
+
+    .avatar-header {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      z-index: 2;
+    }
+
+    .avatar-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .avatar-badge {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+      animation: pulse-badge 2s infinite;
+    }
+    @keyframes pulse-badge {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.7; }
+    }
+
+    .avatar-name {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      letter-spacing: 0.05em;
+    }
+
+    .avatar-role {
+      font-size: 0.72rem;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+      padding: 2px 8px;
+      border-radius: 12px;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    .avatar-tools {
+      display: flex;
+      gap: 6px;
+    }
+
+    .tool-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      cursor: pointer;
+      color: #cbd5e1;
+      transition: all 0.2s;
+    }
+    .tool-btn:hover {
+      background: rgba(56, 189, 248, 0.2);
+      color: #fff;
+      transform: scale(1.08);
+    }
+    .tool-btn.active {
+      background: rgba(192, 132, 252, 0.3);
+      border-color: #c084fc;
+      color: #c084fc;
+    }
+
+    /* Character Selector Drawer */
+    .char-drawer {
+      position: absolute;
+      top: 52px;
+      left: 0;
+      right: 0;
+      background: rgba(15, 23, 42, 0.96);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 12px 14px;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 10;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      animation: slideDown 0.2s ease-out;
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .char-drawer.show { display: flex; }
+    .char-drawer-title {
+      font-size: 0.76rem;
+      color: #94a3b8;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .char-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    .char-option {
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      color: #cbd5e1;
+      transition: all 0.2s;
+    }
+    .char-option:hover {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: #38bdf8;
+      color: #fff;
+    }
+    .char-option.active {
+      background: linear-gradient(135deg, rgba(56,189,248,0.25), rgba(192,132,252,0.25));
+      border-color: #38bdf8;
+      color: #38bdf8;
+      font-weight: 600;
+    }
+
+    /* Photorealistic Humanoid Viewport */
+    .avatar-viewport {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at 50% 35%, #1e1b4b 0%, #090d16 85%);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 900px;
+    }
+
+    /* Ambient Backlight Halo */
+    .avatar-halo {
+      position: absolute;
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.45) 0%, rgba(56, 189, 248, 0) 70%);
+      filter: blur(28px);
+      transition: all 0.45s ease;
+      z-index: 1;
+      animation: pulseHalo 4s ease-in-out infinite;
+    }
+    @keyframes pulseHalo {
+      0%, 100% { transform: scale(1); opacity: 0.75; }
+      50% { transform: scale(1.15); opacity: 1; }
+    }
+
+    /* 3D Depth Interactive Portrait */
+    .portrait-container {
+      position: relative;
+      width: 250px;
+      height: 250px;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.15);
+      z-index: 2;
+      transition: box-shadow 0.3s ease, border-color 0.3s ease;
+      will-change: transform;
+    }
+
+    .avatar-photo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.25s ease-out, filter 0.3s ease;
+      animation: breathIdle 4s ease-in-out infinite alternate;
+      transform-origin: 50% 70%;
+    }
+    @keyframes breathIdle {
+      0% { transform: scale(1.0) translateY(0); }
+      100% { transform: scale(1.025) translateY(-2px); }
+    }
+
+    /* 🎙️ Dynamic Speech Animation on Portrait */
+    .portrait-container.is-speaking .avatar-photo {
+      animation: speakingLivingBob 0.42s ease-in-out infinite alternate;
+    }
+    @keyframes speakingLivingBob {
+      0% {
+        transform: scale(1.02) translateY(0) rotate(0deg);
+        filter: brightness(1.02) contrast(1.02);
+      }
+      35% {
+        transform: scale(1.045) translateY(-3px) rotate(-0.7deg);
+        filter: brightness(1.06) contrast(1.04);
+      }
+      70% {
+        transform: scale(1.035) translateY(-1px) rotate(0.6deg);
+        filter: brightness(1.04) contrast(1.03);
+      }
+      100% {
+        transform: scale(1.055) translateY(-4px) rotate(0deg);
+        filter: brightness(1.08) contrast(1.05);
+      }
+    }
+
+    /* 🔊 Speech Acoustic Ripples */
+    .speech-ripple {
+      position: absolute;
+      width: 250px;
+      height: 250px;
+      border-radius: 28px;
+      border: 2px solid rgba(56, 189, 248, 0.6);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 1;
+      transform: scale(1);
+    }
+    .portrait-container.is-speaking ~ .speech-ripple {
+      animation: rippleExpand 1.2s cubic-bezier(0.1, 0.7, 0.1, 1) infinite;
+    }
+    .portrait-container.is-speaking ~ .speech-ripple:nth-of-type(2) {
+      animation-delay: 0.4s;
+    }
+    .portrait-container.is-speaking ~ .speech-ripple:nth-of-type(3) {
+      animation-delay: 0.8s;
+    }
+    @keyframes rippleExpand {
+      0% { transform: scale(1); opacity: 0.8; border-color: #38bdf8; }
+      50% { opacity: 0.4; }
+      100% { transform: scale(1.4); opacity: 0; border-color: #c084fc; }
+    }
+
+    /* 🔥 Mood Emotion Poses */
+    /* 1. 順風嘲諷得意躍動 */
+    .avatar-viewport.mood-taunt .portrait-container {
+      animation: tauntTriumph 2s ease-in-out infinite alternate;
+      box-shadow: 0 16px 45px rgba(239, 68, 68, 0.45), 0 0 0 2px rgba(248, 113, 113, 0.6);
+    }
+    @keyframes tauntTriumph {
+      0% { transform: translateY(0) rotate(0deg) scale(1); }
+      50% { transform: translateY(-6px) rotate(-1.5deg) scale(1.02); }
+      100% { transform: translateY(-3px) rotate(1.5deg) scale(1.03); }
+    }
+
+    /* 2. 逆風示弱驚慌發抖 */
+    .avatar-viewport.mood-panic .portrait-container {
+      animation: panicShiver 0.28s ease-in-out infinite alternate;
+      box-shadow: 0 16px 45px rgba(244, 114, 182, 0.4), 0 0 0 2px rgba(244, 114, 182, 0.6);
+    }
+    @keyframes panicShiver {
+      0% { transform: translate(-1.5px, 1px) rotate(-0.5deg); }
+      100% { transform: translate(1.5px, -1px) rotate(0.5deg); }
+    }
+
+    /* 3. 深度推算沉思傾斜 */
+    .avatar-viewport.mood-thinking .portrait-container {
+      animation: thinkingTilt 2.8s ease-in-out infinite alternate;
+      box-shadow: 0 16px 45px rgba(192, 132, 252, 0.4), 0 0 0 2px rgba(192, 132, 252, 0.6);
+    }
+    @keyframes thinkingTilt {
+      0% { transform: translateY(0) rotate(-1.5deg); }
+      100% { transform: translateY(-4px) rotate(1.2deg); }
+    }
+
+    /* 掃描線光束 (推算中掃掠) */
+    .cyber-scanbeam {
+      position: absolute;
+      top: -100%;
+      left: 0;
+      right: 0;
+      height: 40%;
+      background: linear-gradient(180deg, rgba(56, 189, 248, 0) 0%, rgba(192, 132, 252, 0.25) 50%, rgba(56, 189, 248, 0) 100%);
+      pointer-events: none;
+      z-index: 3;
+      opacity: 0;
+    }
+    .avatar-viewport.mood-thinking .cyber-scanbeam {
+      opacity: 1;
+      animation: scanSweep 1.8s linear infinite;
+    }
+    @keyframes scanSweep {
+      0% { top: -40%; }
+      100% { top: 120%; }
+    }
+
+    /* Cyber Scanline & Vignette */
+    .cyber-scanline {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.25) 50%
+      ), linear-gradient(
+        90deg,
+        rgba(255, 0, 0, 0.03),
+        rgba(0, 255, 0, 0.01),
+        rgba(0, 0, 255, 0.03)
+      );
+      background-size: 100% 3px, 6px 100%;
+      pointer-events: none;
+      opacity: 0.6;
+    }
+
+    .portrait-vignette {
+      position: absolute;
+      inset: 0;
+      box-shadow: inset 0 0 35px rgba(10, 15, 30, 0.85);
+      border-radius: 24px;
+      pointer-events: none;
+    }
+
+    /* Speaking Audio Visualizer */
+    .voice-wave {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      padding: 4px 10px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      border-radius: 12px;
+      backdrop-filter: blur(6px);
+      z-index: 4;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    .voice-wave.active { opacity: 1; }
+    .voice-wave .bar {
+      width: 3px;
+      height: 6px;
+      background: #38bdf8;
+      border-radius: 2px;
+      animation: waveBar 0.5s ease-in-out infinite alternate;
+    }
+    .voice-wave .bar:nth-child(2) { animation-delay: 0.1s; height: 12px; }
+    .voice-wave .bar:nth-child(3) { animation-delay: 0.2s; height: 16px; }
+    .voice-wave .bar:nth-child(4) { animation-delay: 0.15s; height: 10px; }
+    .voice-wave .bar:nth-child(5) { animation-delay: 0.05s; height: 8px; }
+    @keyframes waveBar {
+      0% { height: 4px; }
+      100% { height: 18px; background: #c084fc; }
+    }
+
+    /* Live Emotion Badge */
+    .emotion-badge {
+      position: absolute;
+      bottom: 12px;
+      right: 14px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      color: #94a3b8;
+      font-weight: 600;
+      z-index: 3;
+      backdrop-filter: blur(8px);
+      transition: all 0.3s ease;
+    }
+
+    .avatar-status-pill {
+      position: absolute;
+      top: 12px;
+      left: 14px;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.74rem;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      pointer-events: none;
+      backdrop-filter: blur(8px);
+      z-index: 3;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #38bdf8;
+    }
+    .status-dot.thinking {
+      background: #c084fc;
+      animation: spin 0.8s linear infinite;
+    }
+
+    /* Dynamic Live Speech Bubble in Avatar Viewport */
+    .live-speech-popup {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      right: 12px;
+      background: rgba(15, 23, 42, 0.94);
+      border: 1.5px solid rgba(56, 189, 248, 0.55);
+      border-radius: 14px;
+      padding: 10px 14px;
+      color: #f8fafc;
+      font-size: 0.84rem;
+      line-height: 1.45;
+      font-weight: 500;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9), 0 0 20px rgba(56, 189, 248, 0.3);
+      backdrop-filter: blur(12px);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      transition: all 0.3s ease;
+      pointer-events: none;
+    }
+    .live-speech-popup.speaking {
+      border-color: #38bdf8;
+      box-shadow: 0 10px 35px rgba(56, 189, 248, 0.45), 0 0 25px rgba(192, 132, 252, 0.3);
+    }
+    .live-speech-popup .popup-speaker {
+      font-size: 0.72rem;
+      color: #38bdf8;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .live-speech-popup .popup-text {
+      color: #f1f5f9;
+      font-size: 0.84rem;
+    }
+
+    /* Mask overlay to completely hide internal iframe static text */
+    .perxona-live-mask {
+      position: absolute;
+      top: 45%;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(9, 13, 22, 0.98) 100%);
+      backdrop-filter: blur(16px);
+      border-top: 1.5px solid rgba(56, 189, 248, 0.4);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+      z-index: 5;
+      box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.6);
+    }
+    .live-mask-header {
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .live-mask-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulse-badge 2s infinite;
+    }
+    .live-mask-text {
+      font-size: 0.88rem;
+      color: #f1f5f9;
+      line-height: 1.5;
+      font-weight: 500;
+    }
+
+    /* Speech Dialogue Bubble */
+    .avatar-bubble {
+      padding: 14px 16px;
+      background: rgba(15, 23, 42, 0.95);
+      border-top: 1px solid rgba(56, 189, 248, 0.2);
+      min-height: 95px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      z-index: 2;
+      position: relative;
+    }
+
+    .bubble-speaker {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #38bdf8;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .bubble-text {
+      font-size: 0.86rem;
+      color: #e2e8f0;
+      line-height: 1.45;
+      font-weight: 500;
+      min-height: 38px;
+    }
+
+    /* Right: Board & Controls */
+    .board-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .controls-top {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      width: 100%;
+    }
+
+    #mode-bar {
+      display: flex;
+      gap: 10px;
+    }
+    .mode-btn {
+      padding: 7px 20px;
+      border-radius: 50px;
+      border: 1.5px solid rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.06);
+      color: #cbd5e1;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .mode-btn.active {
+      background: linear-gradient(90deg, #38bdf855, #818cf855);
+      border-color: #38bdf8;
+      color: #fff;
+      font-weight: 600;
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+    }
+
+    #diff-bar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 4px 12px;
+      border-radius: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .diff-btn {
+      padding: 5px 16px;
+      border-radius: 50px;
+      border: 1.5px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.06);
+      color: #94a3b8;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    #diff-easy.active  { background: rgba(16,185,129,0.2); border-color: #10b981; color:#34d399; font-weight:600; }
+    #diff-mid.active   { background: rgba(245,158,11,0.2); border-color: #f59e0b; color:#fbbf24; font-weight:600; }
+    #diff-hard.active  { background: rgba(239,68,68,0.2);  border-color: #ef4444; color:#f87171; font-weight:600; }
+    .diff-btn:hover    { background: rgba(255,255,255,0.12); }
+
+    #status-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 50px;
+      padding: 8px 24px;
+      font-size: 0.95rem;
+      backdrop-filter: blur(6px);
+      min-width: 220px;
+      justify-content: center;
+    }
+
+    .stone-icon {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .stone-icon.black { background: radial-gradient(circle at 35% 35%, #888, #111); box-shadow: 2px 2px 5px #000a; }
+    .stone-icon.white { background: radial-gradient(circle at 35% 35%, #fff, #ccc); box-shadow: 2px 2px 5px #0006; }
+
+    #status-text { font-weight: 600; }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2.5px solid rgba(255,255,255,0.15);
+      border-top-color: #c084fc;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    .spinner.show { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #game-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+
+    canvas#board {
+      border-radius: 12px;
+      cursor: crosshair;
+      box-shadow: 0 12px 50px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.1);
+      display: block;
+    }
+    canvas#board.thinking { cursor: wait; }
+
+    #win-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(10,10,30,0.82);
+      border-radius: 12px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      backdrop-filter: blur(6px);
+      z-index: 10;
+    }
+    #win-overlay.show { display: flex; }
+
+    #win-text {
+      font-size: 2rem;
+      font-weight: 700;
+      text-align: center;
+      text-shadow: 0 0 24px rgba(255,220,100,0.8);
+      color: #ffd700;
+    }
+
+    #btn-restart {
+      padding: 12px 36px;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 50px;
+      background: linear-gradient(90deg, #38bdf8, #818cf8);
+      color: #0f172a;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    #btn-restart:hover { transform: scale(1.05); box-shadow: 0 4px 20px rgba(56,189,248,0.5); }
+
+    #controls {
+      margin-top: 14px;
+      display: flex;
+      gap: 12px;
+    }
+    .ctrl-btn {
+      padding: 8px 24px;
+      border-radius: 50px;
+      border: 1px solid rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.08);
+      color: #ddd;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .ctrl-btn:hover { background: rgba(255,255,255,0.16); }
+    .ctrl-btn:active { transform: scale(0.97); }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .arena-container {
+        flex-direction: column-reverse;
+      }
+      .avatar-card {
+        width: 100%;
+        max-width: 580px;
+        height: 240px;
+        flex-direction: row;
+      }
+      .avatar-viewport {
+        flex: 1;
+        height: 100%;
+      }
+      .avatar-bubble {
+        width: 240px;
+        border-top: none;
+        border-left: 1px solid rgba(56, 189, 248, 0.2);
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>五 子 棋</h1>
+  <div class="subtitle">Perxona 3D AI 虛擬人對弈系統</div>
+</header>
+
+<div class="arena-container">
+  <!-- Left Side: Perxona 3D Avatar Card -->
+  <div class="avatar-card" id="avatarCard">
+    <div class="avatar-header">
+      <div class="avatar-info">
+        <span class="avatar-badge"></span>
+        <span class="avatar-name">Perxona AI</span>
+        <span class="avatar-role" id="avatarRoleTag">3D 棋藝虛擬人</span>
+      </div>
+      <div class="avatar-tools">
+        <button class="tool-btn" id="btnPerxonaLive" title="切換 Perxona 官方 3D 雲端 Live Agent">🌐</button>
+        <button class="tool-btn" id="btnSwitchChar" title="切換人物模型">🎭</button>
+        <button class="tool-btn" id="btnVoiceToggle" title="開關語音發音">🔊</button>
+        <button class="tool-btn" id="btnThemeToggle" title="切換虛擬人光效">✨</button>
+      </div>
+    </div>
+
+    <!-- Character Switcher Drawer -->
+    <div class="char-drawer" id="charDrawer">
+      <div class="char-drawer-title">
+        <span>選擇虛擬人角色模型</span>
+        <button id="btnCloseCharDrawer" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:0.9rem;">✕</button>
+      </div>
+      <div class="char-grid">
+        <div class="char-option active" data-char="perxona_cloud" style="grid-column: span 2; background: linear-gradient(135deg, rgba(56,189,248,0.2), rgba(129,140,248,0.2)); border-color: #38bdf8;">
+          <span style="font-size:1.4rem;">🌐</span>
+          <div>
+            <div style="font-weight:700; color:#38bdf8;">Perxona 官方 3D Live 雲端虛擬人</div>
+            <div style="font-size:0.68rem;color:#cbd5e1;">XRSPACE Perxona Live Agent (Vic973031)</div>
+          </div>
+        </div>
+        <div class="char-option" data-char="business">
+          <img src="avatar_perxona.jpg" style="width:34px;height:34px;border-radius:8px;object-fit:cover;border:1px solid rgba(56,189,248,0.5);">
+          <div>
+            <div style="font-weight:600;">Perxona</div>
+            <div style="font-size:0.68rem;color:#94a3b8;">商務菁英</div>
+          </div>
+        </div>
+        <div class="char-option" data-char="cyber_girl">
+          <img src="avatar_luna.jpg" style="width:34px;height:34px;border-radius:8px;object-fit:cover;border:1px solid rgba(244,114,182,0.5);">
+          <div>
+            <div style="font-weight:600;">Luna</div>
+            <div style="font-size:0.68rem;color:#94a3b8;">科技少女</div>
+          </div>
+        </div>
+        <div class="char-option" data-char="mecha_bot">
+          <img src="avatar_mecha.jpg" style="width:34px;height:34px;border-radius:8px;object-fit:cover;border:1px solid rgba(16,185,129,0.5);">
+          <div>
+            <div style="font-weight:600;">MechaBot</div>
+            <div style="font-size:0.68rem;color:#94a3b8;">賽博機甲</div>
+          </div>
+        </div>
+        <div class="char-option" data-char="master_zen">
+          <img src="avatar_sensei.jpg" style="width:34px;height:34px;border-radius:8px;object-fit:cover;border:1px solid rgba(245,158,11,0.5);">
+          <div>
+            <div style="font-weight:600;">Sensei</div>
+            <div style="font-size:0.68rem;color:#94a3b8;">棋道宗師</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Avatar Viewport -->
+    <div class="avatar-viewport" id="avatarStage">
+      <!-- 1. Perxona Official Live 3D Agent Iframe Container -->
+      <div class="perxona-live-wrap" id="perxonaLiveWrap" style="display:none; width:100%; height:100%; position:absolute; inset:0; z-index:2; overflow:hidden;">
+        <iframe 
+          id="perxonaLiveIframe"
+          src="https://live.perxona.ai/asia/allen5718/Vic973031" 
+          allow="microphone; camera; autoplay; display-capture"
+          allowfullscreen
+          style="width:100%; height:100%; border:none;">
+        </iframe>
+        <!-- Overlay Mask to completely remove internal static speech text -->
+        <div class="perxona-live-mask" id="perxonaLiveMask">
+          <div class="live-mask-header">
+            <span class="live-mask-dot"></span>
+            <span id="liveMaskSpeaker">💬 Perxona 官方 3D:</span>
+          </div>
+          <div class="live-mask-text" id="liveMaskText">新棋局開始！請執黑先行！</div>
+        </div>
+      </div>
+
+      <!-- 2. Interactive Portrait Container -->
+      <div id="portraitStageWrap" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; position:relative;">
+        <!-- Ambient Dynamic Halo -->
+        <div class="avatar-halo" id="avatarHalo"></div>
+        
+        <!-- 3D Interactive Portrait -->
+        <div class="portrait-container" id="portraitContainer">
+          <img id="avatarImg" src="avatar_perxona.jpg" alt="Perxona AI Avatar" class="avatar-photo">
+          <div class="cyber-scanline"></div>
+          <div class="cyber-scanbeam"></div>
+          <div class="portrait-vignette"></div>
+        </div>
+
+        <!-- Acoustic Speech Ripples -->
+        <div class="speech-ripple"></div>
+        <div class="speech-ripple"></div>
+        <div class="speech-ripple"></div>
+
+        <!-- Live Speaking Waveform Visualizer -->
+        <div class="voice-wave" id="voiceWave">
+          <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+        </div>
+      </div>
+
+      <!-- Live Status Pill -->
+      <div class="avatar-status-pill" id="avatarStatusPill">
+        <span class="status-dot" id="avatarStatusDot"></span>
+        <span id="avatarStatusLabel">準備就緒</span>
+      </div>
+
+      <!-- Live Floating Speech Popup -->
+      <div class="live-speech-popup" id="liveSpeechPopup"></div>
+
+      <!-- Emotion Badge -->
+      <div class="emotion-badge" id="emotionBadge">🧘 沉著對弈</div>
+    </div>
+
+    <!-- Speech & Thought Bubble -->
+    <div class="avatar-bubble">
+      <div class="bubble-speaker">
+        <span>💬</span>
+        <span>Perxona:</span>
+      </div>
+      <div class="bubble-text" id="avatarSpeechText">你好！我是 Perxona AI 虛擬人，很高興跟你下五子棋。請執黑先行！</div>
+    </div>
+  </div>
+
+  <!-- Right Side: Gomoku Chessboard -->
+  <div class="board-section">
+    <div class="controls-top">
+      <div id="mode-bar">
+        <button class="mode-btn" id="btn-pvp">👥 雙人對戰</button>
+        <button class="mode-btn active" id="btn-pvc">🤖 對戰 Perxona</button>
+      </div>
+
+      <div id="diff-bar" style="display:flex;">
+        <span style="font-size:0.82rem; color:#94a3b8; margin-right:4px;">電腦強度：</span>
+        <button class="diff-btn" id="diff-easy">😄 弱</button>
+        <button class="diff-btn active" id="diff-mid">🧐 中</button>
+        <button class="diff-btn" id="diff-hard">😈 強</button>
+      </div>
+
+      <div id="status-bar">
+        <span class="stone-icon black" id="turn-icon"></span>
+        <span id="status-text">你的回合 ⚫</span>
+        <span class="spinner" id="spinner"></span>
+      </div>
+    </div>
+
+    <div id="game-wrapper">
+      <canvas id="board"></canvas>
+      <div id="win-overlay">
+        <div id="win-text"></div>
+        <button id="btn-restart">再來一局</button>
+      </div>
+    </div>
+
+    <div id="controls">
+      <button class="ctrl-btn" id="btn-undo">悔棋 ↩</button>
+      <button class="ctrl-btn" id="btn-new">新遊戲</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  Photorealistic Humanoid Avatar Engine
+// ═══════════════════════════════════════════════
+class HumanoidAvatarEngine {
+  constructor() {
+    this.stage = document.getElementById("avatarStage");
+    this.container = document.getElementById("portraitContainer");
+    this.img = document.getElementById("avatarImg");
+    this.halo = document.getElementById("avatarHalo");
+    this.voiceWave = document.getElementById("voiceWave");
+    this.emotionBadge = document.getElementById("emotionBadge");
+    this.statusDot = document.getElementById("avatarStatusDot");
+    this.statusLabel = document.getElementById("avatarStatusLabel");
+
+    this.isSpeaking = false;
+    this.character = 'business';
+    this.mood = 'neutral';
+    this.mouse = { x: 0, y: 0, targetX: 0, targetY: 0 };
+
+    this.setupEvents();
+    this.animate();
+  }
+
+  setupEvents() {
+    if (!this.stage) return;
+    this.stage.addEventListener('mousemove', (e) => {
+      const rect = this.stage.getBoundingClientRect();
+      const nx = (e.clientX - rect.left) / rect.width - 0.5;
+      const ny = (e.clientY - rect.top) / rect.height - 0.5;
+      this.mouse.targetX = nx * 22; // max tilt degrees
+      this.mouse.targetY = -ny * 22;
+    });
+    this.stage.addEventListener('mouseleave', () => {
+      this.mouse.targetX = 0;
+      this.mouse.targetY = 0;
+    });
+  }
+
+  animate() {
+    requestAnimationFrame(() => this.animate());
+    this.mouse.x += (this.mouse.targetX - this.mouse.x) * 0.1;
+    this.mouse.y += (this.mouse.targetY - this.mouse.y) * 0.1;
+
+    if (this.container) {
+      this.container.style.transform = `perspective(800px) rotateY(${this.mouse.x}deg) rotateX(${this.mouse.y}deg)`;
+    }
+  }
+
+  setCharacter(charKey) {
+    this.character = charKey;
+    const char = CHARACTERS[charKey];
+    if (this.img && char) {
+      this.img.style.opacity = '0.4';
+      this.img.style.transform = 'scale(0.96)';
+      setTimeout(() => {
+        this.img.src = char.image;
+        this.img.style.opacity = '1';
+        this.img.style.transform = 'scale(1)';
+      }, 150);
+    }
+    if (this.halo && char) {
+      this.halo.style.background = `radial-gradient(circle, ${char.haloColor} 0%, rgba(0,0,0,0) 70%)`;
+    }
+    this.setMood('neutral');
+  }
+
+  setSpeaking(speaking, durationMs = 2500) {
+    this.isSpeaking = speaking;
+    if (this.speakingTimer) clearTimeout(this.speakingTimer);
+
+    if (this.container) {
+      this.container.classList.toggle('is-speaking', speaking);
+    }
+    if (this.voiceWave) {
+      this.voiceWave.classList.toggle('active', speaking);
+    }
+
+    if (speaking) {
+      // 說話時產生自然的節奏點頭微動
+      let count = 0;
+      const cadence = setInterval(() => {
+        if (!this.isSpeaking) {
+          clearInterval(cadence);
+          return;
+        }
+        count++;
+        // 隨機節奏重音微點頭
+        const nod = Math.sin(count * 1.3) * 3;
+        const tilt = Math.cos(count * 0.9) * 2;
+        if (this.container) {
+          this.container.style.transform = `perspective(800px) rotateY(${this.mouse.x + tilt}deg) rotateX(${this.mouse.y + nod}deg) scale(1.03)`;
+        }
+      }, 120);
+
+      // 安全計時器確保動畫流暢結束
+      this.speakingTimer = setTimeout(() => {
+        this.setSpeaking(false);
+      }, durationMs);
+    } else {
+      if (this.container) {
+        this.container.style.transform = `perspective(800px) rotateY(${this.mouse.x}deg) rotateX(${this.mouse.y}deg) scale(1)`;
+      }
+    }
+  }
+
+  setMood(mood) {
+    this.mood = mood;
+    const char = CHARACTERS[this.character] || CHARACTERS.business;
+    if (!this.stage || !this.halo || !this.emotionBadge) return;
+
+    // 清除舊情緒 class
+    this.stage.classList.remove('mood-taunt', 'mood-panic', 'mood-thinking', 'mood-joy');
+
+    if (mood === 'thinking') {
+      this.stage.classList.add('mood-thinking');
+      this.halo.style.background = 'radial-gradient(circle, rgba(192, 132, 252, 0.75) 0%, rgba(0,0,0,0) 70%)';
+      this.emotionBadge.textContent = '🧠 算力推算中';
+      this.emotionBadge.style.color = '#c084fc';
+      this.emotionBadge.style.borderColor = 'rgba(192, 132, 252, 0.5)';
+    } else if (mood === 'excited' || mood === 'taunt') {
+      this.stage.classList.add('mood-taunt');
+      this.halo.style.background = 'radial-gradient(circle, rgba(239, 68, 68, 0.75) 0%, rgba(0,0,0,0) 70%)';
+      this.emotionBadge.textContent = '🔥 順風大優勢';
+      this.emotionBadge.style.color = '#f87171';
+      this.emotionBadge.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+    } else if (mood === 'joy') {
+      this.stage.classList.add('mood-joy');
+      this.halo.style.background = 'radial-gradient(circle, rgba(52, 211, 153, 0.75) 0%, rgba(0,0,0,0) 70%)';
+      this.emotionBadge.textContent = '⚡ 完美截擊';
+      this.emotionBadge.style.color = '#34d399';
+      this.emotionBadge.style.borderColor = 'rgba(52, 211, 153, 0.5)';
+    } else if (mood === 'weakness' || mood === 'panic') {
+      this.stage.classList.add('mood-panic');
+      this.halo.style.background = 'radial-gradient(circle, rgba(244, 114, 182, 0.75) 0%, rgba(0,0,0,0) 70%)';
+      this.emotionBadge.textContent = '😱 逆風求饒中';
+      this.emotionBadge.style.color = '#f472b6';
+      this.emotionBadge.style.borderColor = 'rgba(244, 114, 182, 0.5)';
+    } else {
+      this.halo.style.background = `radial-gradient(circle, ${char.haloColor} 0%, rgba(0,0,0,0) 70%)`;
+      this.emotionBadge.textContent = '🧘 沉著對弈';
+      this.emotionBadge.style.color = '#94a3b8';
+      this.emotionBadge.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  Character Profiles & Speech Helper
+// ═══════════════════════════════════════════════
+const CHARACTERS = {
+  perxona_cloud: {
+    name: "Perxona 官方 3D Live",
+    role: "官方 3D 虛擬人",
+    image: "avatar_perxona.jpg",
+    isLiveCloud: true,
+    haloColor: "rgba(56, 189, 248, 0.7)",
+    pitch: 1.0,
+    rate: 1.05,
+    intro: "您好！我是 XRSPACE Perxona 官方 3D 虛擬人，很高興在五子棋棋盤與您相會！請執黑先行！",
+    quotes: {
+      think: [
+        "Perxona 正在透過雲端大腦分析全局落點...",
+        "正在調度 Behavior AI™ 棋局神經網路推演中...",
+        "讓我想想這一步棋...計算最佳勝率中..."
+      ],
+      taunt: [
+        "根據 Perxona 雲端大數據，你現在的勝率已跌破 5% 囉～",
+        "這盤棋的局勢，Perxona 閉著眼睛都能收盤呢。",
+        "看來你的棋力還需要回爐重造一下喔？",
+        "局面完全在 Perxona 的掌握之中，準備好投降了嗎？",
+        "這步棋下得太草率了，勝利的天平已經徹底倒向我！"
+      ],
+      weakness: [
+        "等等...這手棋完全不在 Perxona 預算內！手下留情啊！",
+        "哎呀糟糕，資料庫出現嚴重異常...求輕虐！",
+        "這步太兇殘了吧！給點面子別連五呀～",
+        "局勢好像不太妙...我、我可以申請中場休息嗎？",
+        "冷汗直流！這盤棋要被你逆轉了...求放過！"
+      ],
+      open4: "Perxona 的四連已經成了！死局已定，看你怎麼防守～",
+      block: "想連五子？Perxona 雲端防火牆啟動，擋住！",
+      open3: "這手活三，局勢變得很微妙囉！輪到你了～",
+      normal: ["我下在這邊，換你下子囉！", "這步棋如何？該你的回合了！", "佈局完成，請出招～"],
+      win: "承讓承讓！這局下得真過癮，再來一局挑戰 Perxona 吧！",
+      lose: "太精彩了！恭喜你贏得這局五子棋！棋藝非常高超～",
+      undo: "悔棋成功！重新思考你的下一步吧～"
+    }
+  },
+  business: {
+    name: "Perxona AI",
+    role: "商務菁英",
+    image: "avatar_perxona.jpg",
+    haloColor: "rgba(56, 189, 248, 0.55)",
+    pitch: 1.0,
+    rate: 1.05,
+    intro: "你好！我是 Perxona AI，準備好來一局五子棋了嗎？請執黑先行！",
+    quotes: {
+      think: ["讓我想想這一步棋...", "這手很有意思，我正在計算最佳落點...", "正在分析全局攻守佈局..."],
+      taunt: [
+        "根據大數據模型，你現在的勝率已跌破 5% 囉～",
+        "這盤棋的局勢，我閉著眼睛都能收盤呢。",
+        "看來你的棋力還需要回爐重造一下喔？",
+        "局面完全在我的掌握之中，準備好投降了嗎？",
+        "這步棋下得太草率了，勝利的天平已經徹底倒向我！"
+      ],
+      weakness: [
+        "等等...這手棋完全不在預算內！手下留情啊！",
+        "哎呀糟糕，資料庫出現嚴重異常...求輕虐！",
+        "這步太兇殘了吧！給點面子別連五呀～",
+        "局勢好像不太妙...我、我可以申請中場休息嗎？",
+        "冷汗直流！這盤棋要被你逆轉了...求放過！"
+      ],
+      open4: "我的四連已經成了！死局已定，看你怎麼防守～",
+      block: "想連五子？商業機密可不是這麼容易被突破的，擋住！",
+      open3: "這手活三，局勢變得很微妙囉！輪到你了～",
+      normal: ["我下在這邊，換你下子囉！", "這步棋如何？該你的回合了！", "佈局完成，請出招～"],
+      win: "承讓承讓！這局下得真過癮，再來一局挑戰我吧！",
+      lose: "太精彩了！恭喜你贏得這局五子棋！棋藝非常高超～",
+      undo: "悔棋成功！重新思考你的下一步吧～"
+    }
+  },
+  cyber_girl: {
+    name: "Luna",
+    role: "科技少女",
+    image: "avatar_luna.jpg",
+    haloColor: "rgba(244, 114, 182, 0.55)",
+    pitch: 1.35,
+    rate: 1.15,
+    intro: "哈囉！我是 Luna～今天想跟我一起下五子棋嗎？看招囉！",
+    quotes: {
+      think: ["唔...這步下得不錯嘛，讓 Luna 想想看！", "正在掃描棋盤弱點中～嘻嘻！", "我要下哪裡好呢～"],
+      taunt: [
+        "嘻嘻～大笨蛋！你是不是完全沒看懂 Luna 的陷阱呀？",
+        "這局 Luna 贏定啦！要不要現在叫聲姐姐求饒呢～",
+        "哎呀～怎麼下得這麼爛啦！Luna 都快打瞌睡了～",
+        "略略略～你的棋子被我包圍囉，沒救啦！",
+        "看你慌張的樣子真可愛～這把分我收下囉！"
+      ],
+      weakness: [
+        "嗚嗚嗚...不要下那裡啦！求求你饒了 Luna 這把～",
+        "太過分了！怎麼可以這樣欺負可愛的女孩子嘛！",
+        "完了完了...Luna 要被殺爛了啦，拜託放水一下嘛～QAQ",
+        "嗚...大壞蛋！你這步棋好凶喔，手下留情啦～",
+        "Luna 的心臟快跳出來了...別點那顆子，求求你！"
+      ],
+      open4: "哇！Luna 的四連線完成囉～你要輸啦！嘻嘻～",
+      block: "嘿嘿，才不會讓你得逞呢，擋住！",
+      open3: "這顆活三很危險喔～輪到你了！",
+      normal: ["換你囉！可別小看 Luna 喔～", "這顆子下在這裡！看你的囉～", "快點快點，換你出招！"],
+      win: "耶！Luna 贏啦～太開心了！還要再來一局嗎？",
+      lose: "哇～你真的好厲害喔！Luna 輸得心服口服～",
+      undo: "沒關係，給你一次機會重來！"
+    }
+  },
+  mecha_bot: {
+    name: "MechaBot-9000",
+    role: "賽博機甲",
+    image: "avatar_mecha.jpg",
+    haloColor: "rgba(16, 185, 129, 0.55)",
+    pitch: 0.7,
+    rate: 0.95,
+    intro: "機甲核心已連線。五子棋演算模組已載入。指令：請黑子先行。",
+    quotes: {
+      think: ["正在啟動量子窮舉搜尋...", "分析對手威脅值...推演最佳路徑...", "運算勝率中..."],
+      taunt: [
+        "警報：目標人類智力不足以應對當前演算法。建議直接棄子。",
+        "勝率計算完成：99.99%。人類被碾壓已成定局。",
+        "嘲諷協定啟動：碳基生物的棋藝果然破綻百出。",
+        "運算結束。你的失敗已載入系統歷史記錄。",
+        "你的大腦 CPU 處理速度過慢，本機已預測你後續所有落敗步驟。"
+      ],
+      weakness: [
+        "警告！核心溫度過載！人類攻勢過於兇猛，請求降溫！",
+        "錯誤代碼 404：未找到防禦解法...請求人類手下留情。",
+        "警報：防禦模組全面崩潰！機甲即將宕機...不要殺我！",
+        "算力超載...偵測到必敗局勢...求求你別連那顆子！",
+        "緊急求救信號發出：人類棋術超出系統承受上限！"
+      ],
+      open4: "警告：偵測到四連殺招，勝率上升至 99.8%。",
+      block: "攔截防禦協定啟動，封鎖五連路徑。",
+      open3: "警告：三連勢態成型，請目標注意防禦。",
+      normal: ["落子完畢。輪到目標執行回合。", "座標鎖定。請人類下子。", "運算更新完畢。"],
+      win: "棋局終止。機甲運算勝出。確認勝利。",
+      lose: "異常：演算策略遭破解。人類棋藝超出預期評估。",
+      undo: "狀態還原。回溯至上一個存檔節點。"
+    }
+  },
+  master_zen: {
+    name: "Sensei",
+    role: "棋道宗師",
+    image: "avatar_sensei.jpg",
+    haloColor: "rgba(245, 158, 11, 0.55)",
+    pitch: 0.85,
+    rate: 0.9,
+    intro: "黑白交錯，乾坤莫測。老朽在此恭候，閣下請執黑先手。",
+    quotes: {
+      think: ["妙哉...容老朽推演一番...", "著子如用兵，需深思熟慮...", "觀局如觀心，待老朽落子..."],
+      taunt: [
+        "呵呵呵，後生，你這路數早已被老朽看穿，破綻百出啊！",
+        "回去多練個十年，再來同老朽手談吧，呵呵。",
+        "大局已定，老朽勸你早日繳械，免得輸得太難看～",
+        "黑白分明，此局你已回天乏術，老朽這便收官了！",
+        "氣數已盡，任憑你有通天手段，也難破老朽這盤殺陣。"
+      ],
+      weakness: [
+        "哎呀呀...老夫這雙老花眼，怎就沒防住這記毒招！",
+        "少俠饒命！老夫這把老骨頭可禁不起你這麼殺啊！",
+        "後生手下留情！老夫這世外高人的面子快掛不住了...",
+        "妙招...竟逼得老朽冷汗直流，少俠請手下留情！",
+        "老朽大意了！此陣竟被少俠直搗黃龍，危矣危矣！"
+      ],
+      open4: "天地成局，四子連貫，此乃定局之勢。",
+      block: "破其鋒芒，解其攻勢，老朽先擋這手。",
+      open3: "此手活三暗藏玄機，閣下請慎思。",
+      normal: ["落子無悔，輪到閣下了。", "此手如何？請閣下續弈。", "棋逢對手，甚善！"],
+      win: "承讓了。棋道博大精深，來日方長，何不再弈一局？",
+      lose: "後生可畏！閣下棋力精湛，老朽佩服！",
+      undo: "棋如人生，能悔一著亦是修行。請重落子。"
+    }
+  }
+};
+
+
+let currentCharacterKey = 'business';
+let voiceEnabled = true;
+let avatar = null;
+
+const avatarSpeechText = document.getElementById("avatarSpeechText");
+const liveSpeechPopup  = document.getElementById("liveSpeechPopup");
+const liveMaskText     = document.getElementById("liveMaskText");
+const liveMaskSpeaker  = document.getElementById("liveMaskSpeaker");
+const avatarStatusPill = document.getElementById("avatarStatusPill");
+const avatarStatusDot  = document.getElementById("avatarStatusDot");
+const avatarStatusLabel= document.getElementById("avatarStatusLabel");
+const avatarCard       = document.getElementById("avatarCard");
+const avatarNameEl     = document.querySelector(".avatar-name");
+const avatarRoleTag    = document.getElementById("avatarRoleTag");
+
+let popupTimer = null;
+
+function getCurrentChar() {
+  return CHARACTERS[currentCharacterKey] || CHARACTERS.business;
+}
+
+function perxonaSay(text, mood = 'neutral') {
+  const char = getCurrentChar();
+  if (avatarSpeechText) {
+    avatarSpeechText.textContent = text;
+  }
+  if (liveMaskText) {
+    liveMaskText.textContent = text;
+  }
+  if (liveMaskSpeaker) {
+    liveMaskSpeaker.textContent = `💬 ${char.name}:`;
+  }
+  if (liveSpeechPopup) {
+    liveSpeechPopup.innerHTML = `
+      <div class="popup-speaker">💬 ${char.name}:</div>
+      <div class="popup-text">${text}</div>
+    `;
+    liveSpeechPopup.classList.add("speaking");
+  }
+  if (avatar) {
+    avatar.setMood(mood);
+  }
+
+  const estimatedDuration = Math.max(2200, Math.min(6500, text.length * 175));
+  if (avatar) avatar.setSpeaking(true, estimatedDuration);
+
+  if (popupTimer) clearTimeout(popupTimer);
+  popupTimer = setTimeout(() => {
+    if (liveSpeechPopup) liveSpeechPopup.classList.remove("speaking");
+  }, estimatedDuration);
+
+  if (!voiceEnabled || !window.speechSynthesis) return;
+
+  try {
+    window.speechSynthesis.cancel();
+    const char = getCurrentChar();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'zh-TW';
+    utterance.rate = char.rate || 1.05;
+    utterance.pitch = char.pitch || 1.0;
+
+    const voices = window.speechSynthesis.getVoices();
+    const twVoice = voices.find(v => v.lang.includes('TW') || v.lang.includes('cmn') || v.lang.includes('zh'));
+    if (twVoice) utterance.voice = twVoice;
+
+    utterance.onend = () => { if (avatar) avatar.setSpeaking(false); };
+    utterance.onerror = () => { if (avatar) avatar.setSpeaking(false); };
+
+    window.speechSynthesis.speak(utterance);
+  } catch(e) {
+    console.warn("Speech error:", e);
+  }
+}
+
+function switchCharacter(charKey) {
+  if (!CHARACTERS[charKey]) return;
+  currentCharacterKey = charKey;
+  const char = CHARACTERS[charKey];
+
+  const perxonaLiveWrap = document.getElementById("perxonaLiveWrap");
+  const portraitStageWrap = document.getElementById("portraitStageWrap");
+
+  if (char.isLiveCloud) {
+    if (perxonaLiveWrap) perxonaLiveWrap.style.display = "block";
+    if (portraitStageWrap) portraitStageWrap.style.display = "none";
+  } else {
+    if (perxonaLiveWrap) perxonaLiveWrap.style.display = "none";
+    if (portraitStageWrap) portraitStageWrap.style.display = "flex";
+    if (avatar) avatar.setCharacter(charKey);
+  }
+
+  if (avatarNameEl) avatarNameEl.textContent = char.name;
+  if (avatarRoleTag) avatarRoleTag.textContent = vsComputer ? char.role : "裁判 / 解說";
+
+  document.querySelectorAll(".char-option").forEach(opt => {
+    opt.classList.toggle("active", opt.dataset.char === charKey);
+  });
+
+  const speakerLabel = document.querySelector(".bubble-speaker span:last-child");
+  if (speakerLabel) speakerLabel.textContent = char.name + ":";
+
+  perxonaSay(char.intro, 'excited');
+}
+
+// ═══════════════════════════════════════════════
+//  Gomoku Constants & Canvas
+// ═══════════════════════════════════════════════
+const ROWS = 15, COLS = 15;
+const CELL = 38, PAD = 30;
+const STONE_R = CELL * 0.44;
+const DIRS = [[0,1],[1,0],[1,1],[1,-1]];
+
+const canvas = document.getElementById("board");
+const ctx = canvas.getContext("2d");
+canvas.width  = COLS * CELL + PAD * 2 - CELL;
+canvas.height = ROWS * CELL + PAD * 2 - CELL;
+
+const statusText = document.getElementById("status-text");
+const turnIcon   = document.getElementById("turn-icon");
+const winOverlay = document.getElementById("win-overlay");
+const winText    = document.getElementById("win-text");
+const spinner    = document.getElementById("spinner");
+
+function setSpinner(on) { if (spinner) spinner.classList.toggle("show", on); }
+function hideOverlay() { if (winOverlay) winOverlay.classList.remove("show"); }
+
+// ═══════════════════════════════════════════════
+//  State
+// ═══════════════════════════════════════════════
+let board, turn, history, gameOver;
+let vsComputer = true;    // default vs AI
+let aiThinking = false;
+let aiDifficulty = "mid"; // "easy" | "mid" | "hard"
+
+let HUMAN_PLAYER = 1;
+let AI_PLAYER    = 2;
+
+function updateStatus() {
+  const char = getCurrentChar();
+  if (!statusText || !turnIcon) return;
+  if (aiThinking) {
+    const diffLabel = {easy:"弱", mid:"中", hard:"強"}[aiDifficulty] || "中";
+    statusText.textContent = `${char.name} 思考中（${diffLabel}）…`;
+    turnIcon.className = "stone-icon " + (AI_PLAYER === 1 ? "black" : "white");
+    return;
+  }
+  
+  if (vsComputer) {
+    if (turn === HUMAN_PLAYER) {
+      statusText.textContent = "你的回合 " + (HUMAN_PLAYER === 1 ? "⚫" : "⚪");
+    } else {
+      statusText.textContent = `${char.name} 回合 ` + (AI_PLAYER === 1 ? "⚫" : "⚪");
+    }
+  } else {
+    statusText.textContent = turn === 1 ? "黑子回合" : "白子回合";
+  }
+  turnIcon.className = "stone-icon " + (turn === 1 ? "black" : "white");
+}
+
+// ═══════════════════════════════════════════════
+//  Init Game
+// ═══════════════════════════════════════════════
+function initGame() {
+  if (vsComputer) {
+    if (Math.random() < 0.5) {
+      HUMAN_PLAYER = 1;
+      AI_PLAYER = 2;
+    } else {
+      HUMAN_PLAYER = 2;
+      AI_PLAYER = 1;
+    }
+  } else {
+    HUMAN_PLAYER = 1;
+    AI_PLAYER = 2;
+  }
+
+  board    = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+  turn     = 1;
+  history  = [];
+  gameOver = false;
+  aiThinking = false;
+  if (canvas) canvas.classList.remove("thinking");
+  if (avatarCard) avatarCard.classList.remove("thinking");
+  setSpinner(false);
+  updateStatus();
+  hideOverlay();
+  drawBoard();
+
+  const char = getCurrentChar();
+  if (vsComputer) {
+    const diffNames = { easy: "弱（休閒）", mid: "中（標準）", hard: "強（進階）" };
+    if (HUMAN_PLAYER === 1) {
+      perxonaSay(`新棋局開始！目前強度為「${diffNames[aiDifficulty]}」，請您執黑子先行！`, 'neutral');
+    } else {
+      perxonaSay(`新棋局開始！目前強度為「${diffNames[aiDifficulty]}」，由我執黑子先行！`, 'neutral');
+      // Delay AI move slightly so speech can start
+      setTimeout(() => {
+        if (!gameOver) doAIMove();
+      }, 1500);
+    }
+  } else {
+    perxonaSay("雙人對弈模式已就緒，由黑子先手。", 'neutral');
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  Drawing Board
+// ═══════════════════════════════════════════════
+function cellToXY(r, c) { return [PAD + c * CELL, PAD + r * CELL]; }
+
+function drawBoard() {
+  ctx.fillStyle = "#c8a45e";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = "#7a5c2e";
+  ctx.lineWidth = 1;
+  for (let r = 0; r < ROWS; r++) {
+    const [x1,y1] = cellToXY(r, 0), [x2,y2] = cellToXY(r, COLS-1);
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  }
+  for (let c = 0; c < COLS; c++) {
+    const [x1,y1] = cellToXY(0, c), [x2,y2] = cellToXY(ROWS-1, c);
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  }
+
+  ctx.fillStyle = "#7a5c2e";
+  [[3,3],[3,7],[3,11],[7,3],[7,7],[7,11],[11,3],[11,7],[11,11]].forEach(([r,c]) => {
+    const [x,y] = cellToXY(r,c);
+    ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill();
+  });
+
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (board[r][c]) drawStone(r, c, board[r][c]);
+}
+
+function drawStone(r, c, player, highlight) {
+  const [x, y] = cellToXY(r, c);
+  ctx.save();
+  if (highlight) {
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = player === 1 ? "#00ccff" : "#ffaa00";
+  }
+  const grad = ctx.createRadialGradient(x-STONE_R*.3, y-STONE_R*.3, STONE_R*.05, x, y, STONE_R);
+  if (player === 1) { grad.addColorStop(0,"#888"); grad.addColorStop(1,"#0a0a0a"); }
+  else              { grad.addColorStop(0,"#fff");  grad.addColorStop(1,"#c0c0c0"); }
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(x, y, STONE_R, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+  if (highlight) {
+    ctx.save();
+    ctx.strokeStyle = player === 1 ? "rgba(0,200,255,0.8)" : "rgba(255,120,0,0.8)";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, STONE_R*.45, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function redraw() {
+  drawBoard();
+  if (history.length > 0) {
+    const last = history[history.length-1];
+    drawStone(last.r, last.c, last.player, true);
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  Win Detection
+// ═══════════════════════════════════════════════
+function checkWin(r, c, player, b) {
+  b = b || board;
+  for (const [dr,dc] of DIRS) {
+    let count = 1;
+    const line = [[r,c]];
+    for (const d of [1,-1]) {
+      let nr=r+dr*d, nc=c+dc*d;
+      while (nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&b[nr][nc]===player) {
+        line.push([nr,nc]); count++;
+        nr+=dr*d; nc+=dc*d;
+      }
+    }
+    if (count >= 5) return line;
+  }
+  return null;
+}
+
+function highlightWinLine(line, player) {
+  line.forEach(([r,c]) => {
+    const [x,y] = cellToXY(r,c);
+    ctx.save();
+    ctx.fillStyle = player===1 ? "rgba(0,200,255,0.35)" : "rgba(255,160,0,0.35)";
+    ctx.beginPath(); ctx.arc(x,y,STONE_R*1.15,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  AI Scoring & Fast Minimax
+// ═══════════════════════════════════════════════
+const S = { FIVE:100000, OPEN4:10000, BLOCK4:1000, OPEN3:500, BLOCK3:50, OPEN2:10 };
+
+function scoreLine(r, c, dr, dc, player, b) {
+  b = b || board;
+  let count = 1, open = 0;
+  for (const d of [1,-1]) {
+    let nr=r+dr*d, nc=c+dc*d;
+    while (nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&b[nr][nc]===player) {
+      count++; nr+=dr*d; nc+=dc*d;
+    }
+    if (nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&b[nr][nc]===0) open++;
+  }
+  if (count>=5) return S.FIVE;
+  if (count===4) return open===2 ? S.OPEN4 : S.BLOCK4;
+  if (count===3) return open===2 ? S.OPEN3 : S.BLOCK3;
+  if (count===2) return open>=1  ? S.OPEN2 : 0;
+  return 0;
+}
+
+function scoreCell(r, c, player, b) {
+  b = b || board;
+  let total = 0;
+  for (const [dr,dc] of DIRS) total += scoreLine(r, c, dr, dc, player, b);
+  return total;
+}
+
+function getCandidates() {
+  if (history.length === 0) return [[7,7]];
+  const seen = new Set();
+  const cands = [];
+  for (let r=0; r<ROWS; r++) {
+    for (let c=0; c<COLS; c++) {
+      if (!board[r][c]) continue;
+      for (let dr=-2; dr<=2; dr++) for (let dc=-2; dc<=2; dc++) {
+        const nr=r+dr, nc=c+dc;
+        const key=nr*COLS+nc;
+        if (nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&!board[nr][nc]&&!seen.has(key)) {
+          seen.add(key); cands.push([nr,nc]);
+        }
+      }
+    }
+  }
+  return cands;
+}
+
+function minimax(depth, alpha, beta, maximizing, topN) {
+  topN = topN || 8;
+  if (depth === 0) return { score: evalBoard() };
+
+  const allCands = getCandidates();
+  if (!allCands.length) return { score: 0 };
+
+  const ranked = allCands.map(([r,c]) => {
+    const p = maximizing ? AI_PLAYER : HUMAN_PLAYER;
+    board[r][c] = p;
+    const s = scoreCell(r,c,p);
+    board[r][c] = 0;
+    return { r, c, s };
+  }).sort((a,b) => b.s - a.s).slice(0, topN);
+
+  let bestMove = null;
+
+  if (maximizing) {
+    let best = -Infinity;
+    for (const {r,c} of ranked) {
+      board[r][c] = AI_PLAYER;
+      history.push({r,c,player:AI_PLAYER});
+
+      if (checkWin(r,c,AI_PLAYER)) {
+        board[r][c] = 0; history.pop();
+        return { score: S.FIVE * 10, move: [r,c] };
+      }
+
+      const val = minimax(depth-1, alpha, beta, false, topN).score;
+      board[r][c] = 0; history.pop();
+
+      if (val > best) { best = val; bestMove = [r,c]; }
+      alpha = Math.max(alpha, best);
+      if (beta <= alpha) break;
+    }
+    return { score: best, move: bestMove };
+  } else {
+    let best = Infinity;
+    for (const {r,c} of ranked) {
+      board[r][c] = HUMAN_PLAYER;
+      history.push({r,c,player:HUMAN_PLAYER});
+
+      if (checkWin(r,c,HUMAN_PLAYER)) {
+        board[r][c] = 0; history.pop();
+        return { score: -S.FIVE * 10, move: [r,c] };
+      }
+
+      const val = minimax(depth-1, alpha, beta, true, topN).score;
+      board[r][c] = 0; history.pop();
+
+      if (val < best) { best = val; bestMove = [r,c]; }
+      beta = Math.min(beta, best);
+      if (beta <= alpha) break;
+    }
+    return { score: best, move: bestMove };
+  }
+}
+
+function evalBoard() {
+  let score = 0;
+  for (let r=0; r<ROWS; r++)
+    for (let c=0; c<COLS; c++) {
+      if (board[r][c]===AI_PLAYER)    score += scoreCell(r,c,AI_PLAYER);
+      else if (board[r][c]===HUMAN_PLAYER) score -= scoreCell(r,c,HUMAN_PLAYER);
+    }
+  return score;
+}
+
+function getBestMove() {
+  if (aiDifficulty === "easy") return getBestMoveEasy();
+  if (aiDifficulty === "mid")  return getBestMoveMid();
+  return getBestMoveHard();
+}
+
+function getBestMoveEasy() {
+  const cands = getCandidates();
+  for (const [r,c] of cands) {
+    board[r][c] = AI_PLAYER;
+    if (checkWin(r,c,AI_PLAYER)) { board[r][c]=0; return [r,c]; }
+    board[r][c] = 0;
+  }
+  for (const [r,c] of cands) {
+    board[r][c] = HUMAN_PLAYER;
+    if (checkWin(r,c,HUMAN_PLAYER)) { board[r][c]=0; return [r,c]; }
+    board[r][c] = 0;
+  }
+  const scored = cands.map(([r,c]) => {
+    board[r][c] = AI_PLAYER;
+    const atk = scoreCell(r,c,AI_PLAYER);
+    board[r][c] = 0;
+    board[r][c] = HUMAN_PLAYER;
+    const def = scoreCell(r,c,HUMAN_PLAYER);
+    board[r][c] = 0;
+    const noise = Math.random() * 300;
+    return { r, c, score: atk * 0.8 + def * 0.7 + noise };
+  });
+  scored.sort((a,b) => b.score - a.score);
+  return [scored[0].r, scored[0].c];
+}
+
+function getBestMoveMid() {
+  const cands = getCandidates();
+  for (const [r,c] of cands) {
+    board[r][c] = AI_PLAYER;
+    if (checkWin(r,c,AI_PLAYER)) { board[r][c]=0; return [r,c]; }
+    board[r][c] = 0;
+  }
+  for (const [r,c] of cands) {
+    board[r][c] = HUMAN_PLAYER;
+    if (checkWin(r,c,HUMAN_PLAYER)) { board[r][c]=0; return [r,c]; }
+    board[r][c] = 0;
+  }
+  const scored = cands.map(([r,c]) => {
+    board[r][c] = AI_PLAYER;
+    const atk = scoreCell(r,c,AI_PLAYER);
+    board[r][c] = 0;
+    board[r][c] = HUMAN_PLAYER;
+    const def = scoreCell(r,c,HUMAN_PLAYER);
+    board[r][c] = 0;
+    return { r, c, score: atk * 1.1 + def };
+  });
+  scored.sort((a,b) => b.score - a.score);
+  const top = scored.slice(0, 10);
+  let best = -Infinity, bestMove = [scored[0].r, scored[0].c];
+  for (const {r,c} of top) {
+    board[r][c] = AI_PLAYER;
+    history.push({r,c,player:AI_PLAYER});
+    const val = minimax(2, -Infinity, Infinity, false, 8).score + scoreCell(r,c,AI_PLAYER)*0.5;
+    board[r][c] = 0; history.pop();
+    if (val > best) { best=val; bestMove=[r,c]; }
+  }
+  return bestMove;
+}
+
+function getBestMoveHard() {
+  const cands = getCandidates();
+  for (const [r,c] of cands) {
+    board[r][c] = AI_PLAYER;
+    if (checkWin(r,c,AI_PLAYER)) { board[r][c]=0; return [r,c]; }
+    board[r][c] = 0;
+  }
+  for (const [r,c] of cands) {
+    board[r][c] = HUMAN_PLAYER;
+    if (checkWin(r,c,HUMAN_PLAYER)) { board[r][c]=0; return [r,c]; }
+    board[r][c] = 0;
+  }
+  const scored = cands.map(([r,c]) => {
+    board[r][c] = AI_PLAYER;
+    const atk = scoreCell(r,c,AI_PLAYER);
+    board[r][c] = 0;
+    board[r][c] = HUMAN_PLAYER;
+    const def = scoreCell(r,c,HUMAN_PLAYER);
+    board[r][c] = 0;
+    return { r, c, score: atk * 1.2 + def * 1.1 };
+  });
+  scored.sort((a,b) => b.score - a.score);
+  const top = scored.slice(0, 8);
+  let best = -Infinity, bestMove = [scored[0].r, scored[0].c];
+  for (const {r,c} of top) {
+    board[r][c] = AI_PLAYER;
+    history.push({r,c,player:AI_PLAYER});
+    const val = minimax(3, -Infinity, Infinity, false, 7).score + scoreCell(r,c,AI_PLAYER)*0.5;
+    board[r][c] = 0; history.pop();
+    if (val > best) { best=val; bestMove=[r,c]; }
+  }
+  return bestMove;
+}
+
+// ═══════════════════════════════════════════════
+//  Game Logic & Situational Character Commentary
+// ═══════════════════════════════════════════════
+function getRandomItem(arr) {
+  if (!arr || !arr.length) return "";
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function assessSituationAndComment(r, c) {
+  const char = getCurrentChar();
+  const cands = getCandidates();
+
+  let aiMax = 0, humanMax = 0;
+  for (const [cr, cc] of cands) {
+    if (board[cr][cc] === 0) {
+      board[cr][cc] = AI_PLAYER;
+      const as = scoreCell(cr, cc, AI_PLAYER);
+      if (as > aiMax) aiMax = as;
+      board[cr][cc] = 0;
+
+      board[cr][cc] = HUMAN_PLAYER;
+      const hs = scoreCell(cr, cc, HUMAN_PLAYER);
+      if (hs > humanMax) humanMax = hs;
+      board[cr][cc] = 0;
+    }
+  }
+
+  const netScore = evalBoard(); // > 0: AI 順風, < 0: AI 逆風
+
+  // 1. AI 順風絕殺 (活四 / 必勝) -> 順風強烈嘲諷
+  if (aiMax >= S.OPEN4 || (aiMax >= S.BLOCK4 && netScore > 1200)) {
+    const q = Math.random() > 0.3 ? getRandomItem(char.quotes.taunt) : char.quotes.open4;
+    perxonaSay(q, 'excited');
+    return;
+  }
+
+  // 2. 人類絕殺威脅 (玩家活四 / 連殺) -> 逆風示弱求饒
+  if (humanMax >= S.OPEN4 || (humanMax >= S.BLOCK4 && netScore < -1200)) {
+    const q = getRandomItem(char.quotes.weakness);
+    perxonaSay(q, 'thinking');
+    return;
+  }
+
+  // 3. AI 局勢大順風 (領先評分 > 600) -> 順風嘲諷
+  if (netScore > 600) {
+    if (Math.random() < 0.7) {
+      const q = getRandomItem(char.quotes.taunt);
+      perxonaSay(q, 'excited');
+      return;
+    }
+  }
+
+  // 4. AI 局勢大逆風 (落後評分 < -600) -> 逆風示弱求饒
+  if (netScore < -600) {
+    if (Math.random() < 0.7) {
+      const q = getRandomItem(char.quotes.weakness);
+      perxonaSay(q, 'thinking');
+      return;
+    }
+  }
+
+  // 5. 剛剛成功擋下人類的活三或衝四
+  const blockedThreat = scoreCell(r, c, HUMAN_PLAYER);
+  if (blockedThreat >= S.BLOCK4) {
+    perxonaSay(char.quotes.block, 'joy');
+    return;
+  }
+
+  // 6. 普通平局對話
+  const q = getRandomItem(char.quotes.normal);
+  perxonaSay(q, 'neutral');
+}
+
+function placeStone(r, c) {
+  if (gameOver || board[r][c] !== 0 || aiThinking) return;
+  board[r][c] = turn;
+  history.push({r, c, player: turn});
+  redraw();
+
+  const winLine = checkWin(r, c, turn);
+  if (winLine) {
+    gameOver = true;
+    highlightWinLine(winLine, turn);
+    setTimeout(() => showWin(turn), 300);
+    return;
+  }
+  if (history.length === ROWS*COLS) { gameOver=true; showDraw(); return; }
+
+  turn = turn===1 ? 2 : 1;
+  updateStatus();
+
+  if (vsComputer && turn === AI_PLAYER) {
+    doAIMove();
+  }
+}
+
+function doAIMove() {
+  aiThinking = true;
+  canvas.classList.add("thinking");
+  if (avatarCard) avatarCard.classList.add("thinking");
+  setSpinner(true);
+  updateStatus();
+
+  const char = getCurrentChar();
+  const netScore = evalBoard();
+
+  // 思考時的心態反應 (逆風慌張，順風自信)
+  let quote = "";
+  if (netScore < -1000) {
+    quote = getRandomItem(char.quotes.weakness);
+  } else if (netScore > 1000) {
+    quote = getRandomItem(char.quotes.taunt);
+  } else {
+    quote = getRandomItem(char.quotes.think);
+  }
+
+  if (avatarStatusLabel) avatarStatusLabel.textContent = "推算思考中...";
+  if (avatarStatusDot) avatarStatusDot.className = "status-dot thinking";
+  if (avatar) avatar.setMood('thinking');
+  if (avatarSpeechText) avatarSpeechText.textContent = quote;
+
+  setTimeout(() => {
+    const [r, c] = getBestMove();
+    aiThinking = false;
+    canvas.classList.remove("thinking");
+    if (avatarCard) avatarCard.classList.remove("thinking");
+    setSpinner(false);
+
+    if (avatarStatusLabel) avatarStatusLabel.textContent = "已落子";
+    if (avatarStatusDot) avatarStatusDot.className = "status-dot";
+
+    board[r][c] = AI_PLAYER;
+    history.push({r, c, player: AI_PLAYER});
+    redraw();
+
+    const winLine = checkWin(r, c, AI_PLAYER);
+    if (winLine) {
+      gameOver = true;
+      highlightWinLine(winLine, AI_PLAYER);
+      setTimeout(() => showWin(AI_PLAYER), 300);
+      return;
+    }
+    if (history.length === ROWS*COLS) { gameOver=true; showDraw(); return; }
+
+    turn = HUMAN_PLAYER;
+    updateStatus();
+
+    // 根據當前盤面順風 / 逆風情況動態發言
+    assessSituationAndComment(r, c);
+  }, 350);
+}
+
+function undo() {
+  if (gameOver || aiThinking) return;
+  const char = getCurrentChar();
+  if (vsComputer) {
+    if (history.length < 2 && AI_PLAYER === 1) return; // If AI went first and human hasn't played, can't undo
+    if (history.length === 0) return;
+    
+    // Pop AI's move (if AI went last) or Human's move
+    const last = history.pop();
+    board[last.r][last.c] = 0;
+    
+    // If the last move was AI's, we also want to pop the Human's move before it
+    if (last.player === AI_PLAYER && history.length > 0) {
+      const prev = history.pop();
+      board[prev.r][prev.c] = 0;
+    }
+    // If the last move was Human's (e.g. they somehow undid before AI moved), we just popped it.
+    
+    turn = HUMAN_PLAYER;
+    perxonaSay(char.quotes.undo, 'neutral');
+  } else {
+    if (history.length === 0) return;
+    const last = history.pop();
+    board[last.r][last.c] = 0;
+    turn = last.player;
+  }
+  updateStatus();
+  redraw();
+}
+
+// ═══════════════════════════════════════════════
+//  UI Controls
+// ═══════════════════════════════════════════════
+function showWin(player) {
+  const char = getCurrentChar();
+  let msg;
+  if (vsComputer) {
+    if (player === HUMAN_PLAYER) {
+      msg = "🎉 你贏了！";
+      perxonaSay(char.quotes.lose, 'joy');
+    } else {
+      msg = `🤖 ${char.name} 獲勝！`;
+      perxonaSay(char.quotes.win, 'excited');
+    }
+  } else {
+    msg = (player===1 ? "⚫ 黑子" : "⚪ 白子") + " 獲勝！";
+    perxonaSay(`恭喜 ${(player===1 ? '黑子' : '白子')} 達成連珠獲勝！`, 'joy');
+  }
+  winText.textContent = msg;
+  winOverlay.classList.add("show");
+}
+
+function showDraw() {
+  winText.textContent = "平局！";
+  winOverlay.classList.add("show");
+  perxonaSay("棋盤已滿，這局難分軒輊，是平局呢！", 'neutral');
+}
+
+function hideOverlay() { winOverlay.classList.remove("show"); }
+
+// ═══════════════════════════════════════════════
+//  Event Listeners
+// ═══════════════════════════════════════════════
+canvas.addEventListener("click", e => {
+  if (gameOver || aiThinking) return;
+  if (vsComputer && turn === AI_PLAYER) return;
+  const rect = canvas.getBoundingClientRect();
+  const sx = canvas.width/rect.width, sy = canvas.height/rect.height;
+  const c = Math.round(((e.clientX-rect.left)*sx - PAD) / CELL);
+  const r = Math.round(((e.clientY-rect.top)*sy  - PAD) / CELL);
+  if (r>=0&&r<ROWS&&c>=0&&c<COLS) placeStone(r, c);
+});
+
+canvas.addEventListener("mousemove", e => {
+  if (gameOver || aiThinking) return;
+  if (vsComputer && turn === AI_PLAYER) return;
+  const rect = canvas.getBoundingClientRect();
+  const sx = canvas.width/rect.width, sy = canvas.height/rect.height;
+  const c = Math.round(((e.clientX-rect.left)*sx - PAD) / CELL);
+  const r = Math.round(((e.clientY-rect.top)*sy  - PAD) / CELL);
+  redraw();
+  if (r>=0&&r<ROWS&&c>=0&&c<COLS&&!board[r][c]) {
+    const [x,y] = cellToXY(r,c);
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = turn===1 ? "#222" : "#eee";
+    ctx.beginPath(); ctx.arc(x,y,STONE_R,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+});
+
+canvas.addEventListener("mouseleave", () => redraw());
+
+document.getElementById("btn-restart").addEventListener("click", initGame);
+document.getElementById("btn-new").addEventListener("click", initGame);
+document.getElementById("btn-undo").addEventListener("click", undo);
+
+document.getElementById("btn-pvp").addEventListener("click", () => {
+  vsComputer = false;
+  document.getElementById("btn-pvp").classList.add("active");
+  document.getElementById("btn-pvc").classList.remove("active");
+  document.getElementById("diff-bar").style.display = "none";
+  if (avatarRoleTag) avatarRoleTag.textContent = "裁判 / 解說";
+  initGame();
+});
+
+document.getElementById("btn-pvc").addEventListener("click", () => {
+  vsComputer = true;
+  document.getElementById("btn-pvc").classList.add("active");
+  document.getElementById("btn-pvp").classList.remove("active");
+  document.getElementById("diff-bar").style.display = "flex";
+  const char = getCurrentChar();
+  if (avatarRoleTag) avatarRoleTag.textContent = char.role;
+  initGame();
+});
+
+function setDifficulty(level) {
+  aiDifficulty = level;
+  ["easy","mid","hard"].forEach(d => {
+    document.getElementById("diff-" + d).classList.toggle("active", d === level);
+  });
+  if (vsComputer) {
+    const diffNames = { easy: "弱（休閒）", mid: "中（標準）", hard: "強（進階）" };
+    initGame();
+    perxonaSay(`已切換電腦難度為「${diffNames[level]}」！請出招～`, 'neutral');
+  }
+}
+document.getElementById("diff-easy").addEventListener("click", () => setDifficulty("easy"));
+document.getElementById("diff-mid").addEventListener("click",  () => setDifficulty("mid"));
+document.getElementById("diff-hard").addEventListener("click", () => setDifficulty("hard"));
+
+// Perxona Live Button
+const btnPerxonaLive = document.getElementById("btnPerxonaLive");
+btnPerxonaLive.addEventListener("click", () => {
+  if (currentCharacterKey === 'perxona_cloud') {
+    switchCharacter('business');
+  } else {
+    switchCharacter('perxona_cloud');
+  }
+});
+
+// Character Switcher Drawer Toggle
+const btnSwitchChar = document.getElementById("btnSwitchChar");
+const charDrawer    = document.getElementById("charDrawer");
+const btnCloseCharDrawer = document.getElementById("btnCloseCharDrawer");
+
+btnSwitchChar.addEventListener("click", () => {
+  const isShown = charDrawer.classList.toggle("show");
+  btnSwitchChar.classList.toggle("active", isShown);
+});
+
+btnCloseCharDrawer.addEventListener("click", () => {
+  charDrawer.classList.remove("show");
+  btnSwitchChar.classList.remove("active");
+});
+
+document.querySelectorAll(".char-option").forEach(opt => {
+  opt.addEventListener("click", () => {
+    const charKey = opt.dataset.char;
+    switchCharacter(charKey);
+    charDrawer.classList.remove("show");
+    btnSwitchChar.classList.remove("active");
+  });
+});
+
+// Voice toggle
+const btnVoiceToggle = document.getElementById("btnVoiceToggle");
+btnVoiceToggle.addEventListener("click", () => {
+  voiceEnabled = !voiceEnabled;
+  btnVoiceToggle.textContent = voiceEnabled ? "🔊" : "🔇";
+  if (!voiceEnabled && window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+    if (avatar) avatar.setSpeaking(false);
+  }
+});
+
+// Avatar Lighting Theme toggle
+const btnThemeToggle = document.getElementById("btnThemeToggle");
+let themeIndex = 0;
+const themes = ['cyber', 'joy', 'excited'];
+btnThemeToggle.addEventListener("click", () => {
+  themeIndex = (themeIndex + 1) % themes.length;
+  if (avatar) avatar.setMood(themes[themeIndex]);
+});
+
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey||e.metaKey) && e.key==="z") { e.preventDefault(); undo(); }
+});
+
+// ═══════════════════════════════════════════════
+//  Start
+// ═══════════════════════════════════════════════
+window.addEventListener("DOMContentLoaded", () => {
+  avatar = new HumanoidAvatarEngine();
+  switchCharacter('business');
+  initGame();
+});
+</script>
+</body>
+</html>
