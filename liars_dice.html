@@ -195,7 +195,15 @@
     <div class="area table-area">
       <div class="area-title">桌面狀態</div>
       <div class="current-bid" id="current-bid">目前無叫牌</div>
-      <div class="controls">
+      
+      <!-- 遊戲結束專用顯示面板 -->
+      <div id="game-over-banner" style="display:none; margin: 10px 0; padding: 18px; border-radius: 14px; text-align: center; width: 100%; box-sizing: border-box;">
+        <div id="game-over-title" style="font-size: 1.8rem; font-weight: bold; margin-bottom: 8px;"></div>
+        <div id="game-over-desc" style="font-size: 1.05rem; color: #cbd5e1; margin-bottom: 14px;"></div>
+        <button onclick="restartGame()" style="padding: 10px 28px; font-size: 1.1rem; background: linear-gradient(90deg, #10b981, #06b6d4); color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);">🔄 立即重新開始</button>
+      </div>
+
+      <div class="controls" id="controls-panel">
         <select id="bid-qty"></select>
         <select id="bid-face">
           <option value="1">1</option>
@@ -295,6 +303,9 @@
   function restartGame() {
     playerTotalDice = 5;
     aiTotalDice = 5;
+    document.getElementById('game-over-banner').style.display = 'none';
+    document.getElementById('current-bid').style.display = 'block';
+    document.getElementById('controls-panel').style.display = 'flex';
     document.getElementById('game-log').innerHTML = '';
     log("=== 遊戲已重新開始 ===", 'system');
     startRound();
@@ -398,12 +409,30 @@
     // 檢查是否遊戲結束
     if (playerTotalDice === 0 || aiTotalDice === 0) {
       const isPlayerWin = aiTotalDice === 0;
-      const winHtml = isPlayerWin 
-        ? '<span style="color:#10b981; font-weight:bold; font-size:1.6rem; text-shadow:0 0 15px rgba(16,185,129,0.5);">🎉 遊戲結束：恭喜你獲勝！</span>'
-        : '<span style="color:#ef4444; font-weight:bold; font-size:1.6rem; text-shadow:0 0 15px rgba(239,68,68,0.5);">💀 遊戲結束：你的對手獲勝！</span>';
       
-      document.getElementById('current-bid').innerHTML = winHtml;
-      document.getElementById('btn-next').style.display = 'none';
+      // 隱藏目前叫牌與普通控制區
+      document.getElementById('current-bid').style.display = 'none';
+      document.getElementById('controls-panel').style.display = 'none';
+      
+      const banner = document.getElementById('game-over-banner');
+      const title = document.getElementById('game-over-title');
+      const desc = document.getElementById('game-over-desc');
+      
+      banner.style.display = 'block';
+      if (isPlayerWin) {
+        banner.style.background = 'rgba(16, 185, 129, 0.15)';
+        banner.style.border = '2px solid #10b981';
+        title.style.color = '#34d399';
+        title.innerHTML = '🎉 遊戲結束！恭喜你獲勝 🎉';
+        desc.textContent = '對手的骰子已全部輸光，你贏得了這場吹牛對決！';
+      } else {
+        banner.style.background = 'rgba(239, 68, 68, 0.15)';
+        banner.style.border = '2px solid #ef4444';
+        title.style.color = '#f87171';
+        title.innerHTML = '💀 遊戲結束！你輸了 💀';
+        desc.textContent = '你的骰子已全部輸光，下次再接再厲！';
+      }
+      
       log(isPlayerWin ? "🏆 遊戲結束，恭喜你贏得整場比賽！請點擊「重新開始」。" : "🏆 遊戲結束，你的骰子全沒了！請點擊「重新開始」。", 'warning');
     } else {
       document.getElementById('btn-next').style.display = 'inline-block';
